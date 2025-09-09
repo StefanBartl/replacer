@@ -270,52 +270,69 @@ local function run_once(old, new_text, scope)
 		prompt = string.format("Replace '%s' → '%s' (select spots)> ", old, new_text),
 		fzf_opts = {
 			["--multi"] = "",
-			["--bind"] = "ctrl-a:select-all,ctrl-d:deselect-all",
-			["--with-nth"] = "1", -- hide the trailing \tID... from filtering
+			-- keine --bind-Spielereien nötig, fzf-lua mappt actions-Keys via --expect
+			["--with-nth"] = "1",
 			["--delimiter"] = "\t",
 			["--no-mouse"] = "",
 		},
 
-		-- Use the builtin previewer and feed it via a Lua callback.
-		-- This avoids constructing a custom previewer object.
 		previewer = "builtin",
-
-		-- fzf-lua will call this to render the preview text.
-		-- It should return either a string or a list of lines.
 		fn_previewer = function(item)
-			-- 'item' can be a string or a {line} table from fzf-lua
 			local line = type(item) == "table" and item[1] or item
 			if type(line) ~= "string" then return { "[no selection]" } end
 			local id = line:match("\t(ID%d+)$")
 			local it = id and idmap[id] or nil
-			if not it then return { "[unknown id]" } end
-			-- Reuse our context builder
-			local lines = preview_lines(it)
-			-- fzf-lua accepts a table of lines or a single string
-			return lines
+			return it and preview_lines(it) or { "[unknown id]" }
 		end,
 
 		actions = {
+			-- Enter: ersetze genau die ausgewählten Spots (ohne globale Bestätigung)
 			["default"] = function(selected)
 				if not selected or #selected == 0 then return end
 				---@type RP_Match[]
 				local chosen = {}
 				for _, line in ipairs(selected) do
-					-- each entry is a string unless multi-select passes a table
 					local s = type(line) == "table" and line[1] or line
 					local id = type(s) == "string" and s:match("\t(ID%d+)$") or nil
 					local it = id and idmap[id] or nil
 					if it then chosen[#chosen + 1] = it end
 				end
-				if #chosen == 0 then
-					log("Nothing selected", RP_LogLevel.WARN)
+				if #chosen == 0 then return end
+				local files, spots = apply_replacements(chosen, new_text)
+				log(string.format("Replaced %d spot(s) in %d file(s)", spots, files), RP_LogLevel.INFO)
+			end,
+
+			-- Ctrl-A: „alles ersetzen“ mit Bestätigung, unabhängig von aktueller Auswahl
+			["ctrl-a"] = function(_)
+				-- alle Items vorbereiten
+				---@type RP_Match[]
+				local all = {}
+				for _, line in ipairs(source) do
+					local s = type(line) == "table" and line[1] or line
+					local id = type(s) == "string" and s:match("\t(ID%d+)$") or nil
+					local it = id and idmap[id] or nil
+					if it then all[#all + 1] = it end
+				end
+				if #all == 0 then return end
+
+				-- Anzahl Dateien für die Bestätigung berechnen
+				local fileset = {} ---@type table<string, true>
+				for _, it in ipairs(all) do fileset[it.path] = true end
+				local filecount = 0; for _ in pairs(fileset) do filecount = filecount + 1 end
+
+				local msg = string.format("Apply replacement to ALL %d spot(s) across %d file(s)?", #all, filecount)
+				local ok = vim.fn.confirm(msg, "&Yes\n&No", 2)
+				if ok ~= 1 then
+					log("Cancelled", RP_LogLevel.INFO)
 					return
 				end
-				local files, spots = apply_replacements(chosen, new_text)
+
+				local files, spots = apply_replacements(all, new_text)
 				log(string.format("Replaced %d spot(s) in %d file(s)", spots, files), RP_LogLevel.INFO)
 			end,
 		},
 	}, CFG.fzf or {})
+
 	fzf.fzf_exec(source, opts)
 end
 
