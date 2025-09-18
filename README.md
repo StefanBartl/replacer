@@ -129,6 +129,22 @@ Local development (using a local path):
 
 ## Configuration
 
+**Available Options:**
+
+| Option           | Type     | Description                                                    |
+| ---------------- | ---------| ---------------------------------------------------------------|
+| engine           | string   | Picker backend: "fzf" / "telescope"                            |
+| write\_changes   | boolean  | Write modified buffers on apply (true) or keep unsaved (false) |
+| confirm\_all     | boolean  | Ask confirmation before replacing all matches at once          |
+| preview\_context | integer  | Context lines shown in preview around the hit                  |
+| hidden           | boolean  | Include dotfiles (`--hidden`)                                  |
+| git_ignore       | boolean  | Respect .gitignore (false → `--no-ignore`)                     |
+| exclude_git_dir  | boolean  | Exclude `.git` directory explicitly (`--glob !.git`)           |
+| literal          | boolean  | Literal search (`--fixed-strings`); set false for regex mode   |
+| smart_case       | boolean  | Smart-case (`-S`)                                              |
+| fzf              | table?   | Extra options for `fzf-lua` (merged into picker opts)          |
+| telescope        | table?   | Extra options for Telescope picker (theme/layout)              | 
+
 Minimal:
 
 ```lua
@@ -151,24 +167,6 @@ require("replacer").setup({
   telescope = { layout_config = { width = 0.9, height = 0.8 } },
 })
 ```
-
-### Available Options
-
-Plaintext table:
-
-engine             string     Picker backend: "fzf" | "telescope"
-write\_changes      boolean    Write modified buffers on apply (true) or keep unsaved (false)
-confirm\_all        boolean    Ask confirmation before replacing all matches at once
-preview\_context    integer    Context lines shown in preview around the hit
-hidden             boolean    Include dotfiles (`--hidden`)
-git\_ignore         boolean    Respect .gitignore (false → `--no-ignore`)
-exclude\_git\_dir    boolean    Exclude `.git` directory explicitly (`--glob !.git`)
-literal            boolean    Literal search (`--fixed-strings`); set false for regex mode
-smart\_case         boolean    Smart-case (`-S`)
-fzf                table?     Extra options for `fzf-lua` (merged into picker opts)
-telescope          table?     Extra options for Telescope picker (theme/layout)
-
----
 
 ## Usage
 
