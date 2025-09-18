@@ -1,7 +1,16 @@
 ---@module 'replacer.pickers.telescope'
---- Telescope-based interactive selection with simple preview.
---- Uses attach_mappings in the picker options (preferred) and passes
---- two arguments to pickers.new (theme/layout opts, then picker opts).
+--- Telescope-based interactive selection with consistent UX:
+---   - <Tab> toggles selection + moves forward, <S-Tab> toggles + moves back
+---   - <CR> applies multi-selection if present, else just the current entry
+---   - <C-a> applies ALL matches (optional confirmation via cfg.confirm_all)
+---
+--- Design notes:
+---   - This picker mirrors the behavior of the fzf-lua variant; both share
+---     `replacer.pickers.common` for display formatting, preview text, and notifications.
+---   - We keep everything in `attach_mappings` to override default actions cleanly.
+
+local common = require("replacer.pickers.common")
+
 --------------------------------------------------------------------------------
 -- Implementation
 --------------------------------------------------------------------------------
@@ -17,6 +26,7 @@ local function run(items, new_text, cfg, apply_func)
     vim.notify("[replacer] telescope.nvim not found", vim.log.levels.ERROR)
     return
   end
+
   local pickers_ok, pickers = pcall(require, "telescope.pickers")
   local finders_ok, finders = pcall(require, "telescope.finders")
   local previewers_ok, previewers = pcall(require, "telescope.previewers")
@@ -32,10 +42,7 @@ local function run(items, new_text, cfg, apply_func)
   local function entry_maker(it)
     return {
       value = it,
-      display = string.format(
-        "%s:%d:%d — %s",
-        vim.fn.fnamemodify(it.path, ":."), it.lnum, it.col0 + 1, it.line
-      ),
+      display = common.format_display(it),
       ordinal = it.path .. " " .. it.line,
     }
   end
@@ -44,56 +51,66 @@ local function run(items, new_text, cfg, apply_func)
     title = "Preview",
     define_preview = function(self, entry)
       ---@cast entry { value: RP_Match }
-      local it = entry.value
-      local okf, fh = pcall(io.open, it.path, "r")
-      if not okf or not fh then
-        vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, { "[unreadable]" })
+      local it = entry and entry.value or nil
+      if not it then
+        vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, { "[no selection]" })
         return
       end
-      local lines ---@type string[]
-      lines = {}
-      for s in fh:lines() do lines[#lines+1] = s end
-      fh:close()
-
-      local ctx = cfg.preview_context
-      local s = math.max(1, it.lnum - ctx)
-      local e = math.min(#lines, it.lnum + ctx)
-
-      local out ---@type string[]
-      out = {}
-      for i = s, e do
-        local mark = (i == it.lnum) and "▶ " or "  "
-        out[#out+1] = string.format("%s%6d  %s", mark, i, tostring(lines[i] or ""))
-      end
-
-      vim.bo[self.state.bufnr].filetype = ""
+      local out = common.preview_lines(it.path, it.lnum, cfg.preview_context)
+      vim.bo[self.state.bufnr].filetype = "" -- neutral to avoid syntax noise
       vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, out)
     end,
   })
 
   -- Theme/layout options as first argument; picker options as second
-  local theme_opts = cfg.telescope or {}
+  local theme_opts = vim.tbl_deep_extend("force", { multi_icon = "*" }, cfg.telescope or {})
 
   local picker = pickers.new(theme_opts, {
     prompt_title = "Select matches",
     sorter = conf.values.generic_sorter(theme_opts),
-    finder = finders.new_table({
-      results = items,
-      entry_maker = entry_maker,
-    }),
+    finder = finders.new_table({ results = items, entry_maker = entry_maker }),
     previewer = previewer,
 
-    -- Prefer attach_mappings here instead of calling picker:attach_mappings later
     attach_mappings = function(prompt_bufnr, map)
-      -- <CR>: replace exactly the selected entry (no global confirmation)
-      actions.select_default:replace(function()
+      local function apply_selected_or_one()
         local sel = action_state.get_selected_entry()
-        if not sel or not sel.value then return end
-        ---@cast sel { value: RP_Match }
-        local files, spots = apply_func({ sel.value }, new_text, cfg.write_changes)
-        vim.notify(string.format("[replacer] %d spot(s) in %d file(s)", spots, files))
-        actions.close(prompt_bufnr)
-      end)
+        if not sel then return end
+
+        local cur_picker = action_state.get_current_picker(prompt_bufnr)
+        local multi = (cur_picker and cur_picker:get_multi_selection()) or {}
+
+        if type(multi) == "table" and #multi > 0 then
+          ---@type RP_Match[]
+          local chosen = {}
+          for _, e in ipairs(multi) do
+            if e and e.value then chosen[#chosen + 1] = e.value end
+          end
+          local files, spots = apply_func(chosen, new_text, cfg.write_changes)
+          common.notify_result(files, spots)
+          actions.close(prompt_bufnr)
+        else
+          if not sel.value then return end
+          ---@cast sel { value: RP_Match }
+          local files, spots = apply_func({ sel.value }, new_text, cfg.write_changes)
+          common.notify_result(files, spots)
+          actions.close(prompt_bufnr)
+        end
+      end
+
+      -- <CR>: multi-aware default action
+      actions.select_default:replace(apply_selected_or_one)
+
+      -- <Tab>/<S-Tab>: toggle + move
+      local function toggle_next()
+        actions.toggle_selection(prompt_bufnr)
+        actions.move_selection_next(prompt_bufnr)
+      end
+      local function toggle_prev()
+        actions.toggle_selection(prompt_bufnr)
+        actions.move_selection_previous(prompt_bufnr)
+      end
+      map("i", "<Tab>", toggle_next);  map("n", "<Tab>", toggle_next)
+      map("i", "<S-Tab>", toggle_prev); map("n", "<S-Tab>", toggle_prev)
 
       -- <C-a>: replace ALL matches with optional confirmation
       local function do_all()
@@ -104,12 +121,11 @@ local function run(items, new_text, cfg, apply_func)
           end
         end
         local files, spots = apply_func(items, new_text, cfg.write_changes)
-        vim.notify(string.format("[replacer] %d spot(s) in %d file(s)", spots, files))
+        common.notify_result(files, spots)
         actions.close(prompt_bufnr)
       end
+      map("i", "<C-a>", do_all); map("n", "<C-a>", do_all)
 
-      map("i", "<C-a>", do_all)
-      map("n", "<C-a>", do_all)
       return true
     end,
   })
