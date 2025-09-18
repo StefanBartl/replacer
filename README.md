@@ -6,32 +6,74 @@
 ![Neovim](https://img.shields.io/badge/Neovim-0.9+-success.svg)
 ![Lua](https://img.shields.io/badge/language-Lua-yellow.svg)
 
-Project-wide search-and-replace with ripgrep, an interactive picker (fzf-lua or Telescope), live preview, and precise, bottom-up application of changes.
-
-Structure and sectioning follow the same style as a prior plugin README for consistency.&#x20;
+Project-wide search-and-replace with ripgrep, an interactive picker (fzf-lua or Telescope), live preview, and precise  application of changes.
 
 ---
 
 * [Features](#features)
-* [Demo](#demo)
 * [Roadmap](#roadmap)
-* [Requirements](#requirements)
+* [Usage](#usage)
+  * [Command Syntax](#command-syntax)
+  * [Picker Keymaps](#picker-keymaps)
+* [Features](#features)
 * [Installation](#installation)
-
   * [With Lazy.nvim](#with-lazynvim)
 * [Configuration](#configuration)
-
-  * [Available Options](#available-options)
-* [Usage](#usage)
-
-  * [Picker Keymaps](#picker-keymaps)
-  * [Command Syntax](#command-syntax)
-  * [Programmatic API](#programmatic-api)
 * [Safety & Notes](#safety--notes)
-* [Architecture Overview](#architecture-overview)
 * [Development](#development)
 * [License](#license)
-* [Contribution](#contribution)
+* [Disclaimer](#license)
+* [Feedback](#Feedback)
+
+---
+
+## Usage
+
+### Command Syntax
+
+```sh
+:Replace {old} {new} {scope?} {All?}
+```
+
+Parameters:
+
+old       **required** literal (or regex if configured) text to search for
+new       **required** replacement text; empty string deletes matches
+scope     **optional:** one of:
+   -->  %         current buffer (file-backed)
+   -->  cwd       current working directory
+   -->  .         alias for cwd <path>  explicit file or directory
+All       **optional:** token; when present, runs non-interactive “replace all” (no picker)
+
+Examples:
+
+
+
+```sh
+:Replace foo bar                             # opens picker to select replacing targets in cwd
+:Replace foo bar %                           # opens picker to select replacing targets in current file
+:Replace foo bar cwd                         # opens picker to select replacing targets in cwd
+:Replace "very old" "brand new" ./src        # opens picker to select replacing targets in ./src
+:Replace foo "" %                            # opens picker to select matches to deletion in current file
+:Replace foo bar cwd All                     # apply replacements without opening the picker
+```
+
+---
+
+### Picker Keymaps
+
+After picker opened:
+
+**fzf-lua:**
+
+* Enter: apply to the currently selected entries
+* Tab: toggle selection
+* Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
+
+**Telescope:**
+
+* Enter: apply to the highlighted entry
+* Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
 
 ---
 
@@ -49,28 +91,6 @@ Structure and sectioning follow the same style as a prior plugin README for cons
 
 ---
 
-## Demo
-
-Replace across the current working directory, preview hits, select some, apply:
-
-```
-:Replace foo bar cwd
-```
-
-Replace everything without opening a picker:
-
-```
-:Replace foo bar cwd All
-```
-
-Delete matches (empty replacement):
-
-```
-:Replace "old phrase" "" %
-```
-
----
-
 ## Roadmap
 
 * [x] Non-interactive “All” mode via `:Replace ... All`
@@ -83,18 +103,17 @@ Delete matches (empty replacement):
 
 ---
 
-## Requirements
-
-* Neovim 0.9 or newer
-* ripgrep (`rg`) in `PATH`
-* One picker:
-
-  * `ibhagwan/fzf-lua`, or
-  * `nvim-telescope/telescope.nvim` (+ `nvim-lua/plenary.nvim`)
 
 ---
 
 ## Installation
+
+**Requirements;**
+  * Neovim 0.9 or newer
+  * ripgrep (`rg`) in `PATH`
+  * One picker:
+      * `ibhagwan/fzf-lua`, or
+      * `nvim-telescope/telescope.nvim` (+ `nvim-lua/plenary.nvim`)
 
 ### With Lazy.nvim
 
@@ -168,61 +187,6 @@ require("replacer").setup({
 })
 ```
 
-## Usage
-
-### Picker Keymaps
-
-fzf-lua:
-
-* Enter: apply to the currently selected entries
-* Tab: toggle selection
-* Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
-
-Telescope:
-
-* Enter: apply to the highlighted entry
-* Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
-
-### Command Syntax
-
-```
-:Replace {old} {new} {scope?} {All?}
-```
-
-Parameters:
-
-old       literal (or regex if configured) text to search for
-new       replacement text; empty string deletes matches
-scope     one of:
-%       current buffer (file-backed)
-cwd     current working directory
-.       alias for cwd <path>  explicit file or directory
-All       optional token; when present, runs non-interactive “replace all” (no picker)
-
-Examples:
-
-```
-:Replace foo bar cwd
-:Replace "very old" "brand new" ./src
-:Replace foo "" %          "delete matches in current file"
-:Replace foo bar cwd All   "apply without opening the picker"
-```
-
-### Programmatic API
-
-```lua
-local replacer = require("replacer")
-
--- Setup once (e.g. in your plugin manager config)
-replacer.setup({ engine = "fzf", write_changes = true })
-
--- Run ad-hoc from Lua:
-replacer.run("foo", "bar", "cwd", false)  -- open picker
-replacer.run("foo", "bar", "cwd", true)   -- replace all (non-interactive)
-```
-
----
-
 ## Safety & Notes
 
 * Edits are applied bottom-up per file to avoid index shift issues.
@@ -233,31 +197,12 @@ replacer.run("foo", "bar", "cwd", true)   -- replace all (non-interactive)
 
 ---
 
-## Architecture Overview
-
-```
-replacer/
-│
-├── init.lua               → public API (setup, run), engine dispatch
-├── config.lua             → defaults + deep-merge resolution
-├── command.lua            → :Replace parsing + scope resolution
-├── rg.lua                 → ripgrep --json integration
-├── apply.lua              → bottom-up edits, optional writes
-├── pickers/
-│   ├── fzf.lua            → fzf-lua UI (preview, Ctrl-A = replace all)
-│   └── telescope.lua      → Telescope UI (preview, Ctrl-A = replace all)
-└── types/                 → optional type stubs for LuaLS (if used)
-```
-
----
-
 ## Development
 
 * Repository layout follows standard `lua/<plugin_name>/...` convention for Lazy.nvim.
 * Type hints use EmmyLua; LuaLS-friendly stubs are provided where helpful.
 * To hack locally, add your repo via `dir = "/path/to/replacer"`.
 * Typical debug flow:
-
   * `:Replace foo bar cwd`
   * In picker, inspect preview; Tab to select specific hits; Enter to apply
   * Ctrl-A to replace all with confirmation
@@ -271,7 +216,25 @@ replacer/
 
 ---
 
-## Contribution
+## Disclaimer
 
-Issues and PRs are welcome. If you have ideas for diff previews, additional picker actions, or regex helpers, open a discussion.
+ℹ️ This plugin is under active development – some features are planned or experimental.
+Expect changes in upcoming releases.
 
+---
+
+## Feedback
+
+Your feedback is very welcome!
+
+Please use the [GitHub issue tracker](https://github.com/StefanBartl/replacer/issues) to:
+- Report bugs
+- Suggest new features
+- Ask questions about usage
+- Share thoughts on UI or functionality
+
+For general discussion, feel free to open a [GitHub Discussion](https://github.com/StefanBartl/replacer/discussions).
+
+If you find this plugin helpful, consider giving it a ⭐ on GitHub — it helps others discover the project.
+
+---
