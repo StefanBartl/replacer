@@ -1,7 +1,12 @@
 # Roadmap für 'Replacer'
 
-- :h
-- github repo detaillierter mit infos versorgen
+1. mehrmalige vorkommen innerhalb einer Zeile mpssen kebenfalls replaced werden fc
+2. literal und andere optionen ssollem auch im command mitgegeben werden können
+3. user config weiter ausbauen
+4. Nichtn ur rigrep, sondern auch vimgrep sollte verwendbar sein
+5. Comments lectures
+6. :h
+7. github repo detaillierter mit infos versorgen
 
 ## Features
 

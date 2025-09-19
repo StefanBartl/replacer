@@ -1,87 +1,97 @@
----@module 'replacer.init'
---- Public API for the replacer plugin: setup(), run().
---- Orchestrates: argument parsing (via command module), ripgrep search,
---- interactive picker (fzf-lua or telescope), and bottom-up application.
+---@module 'replacer'
+--- Core orchestration: collect matches, run picker (or non-interactive),
+--- apply replacements, and notify results.
+--- Public API:
+---   - setup(opts): initialize/override configuration
+---   - run(old, new_text, scope, non_interactive_all, overrides?): execute a replace workflow
+---
+--- Notes:
+---   - `setup` delegates to `replacer.config.setup`.
+---   - `run` merges per-run overrides via `replacer.config.resolve` (no global mutation).
 
-local Config = require("replacer.config")
-local RG = require("replacer.rg")
-local Apply = require("replacer.apply")
-local Cmd = require("replacer.command")
+local M = {}
 
----@type Replacer
-local M = {
-	-- Provide stubs so LuaLS sees required fields at initialization time.
-	options = Config.resolve(nil),
-	setup = function(_) end, -- replaced below
-	run = function(_, _, _, _) end, -- replaced below
-}
+local cfg_mod = require("replacer.config")
+local rg = require("replacer.rg") -- collector (ripgrep wrapper)
+local apply = require("replacer.apply") -- applier
+local picker_fz = require("replacer.pickers.fzf")
+local picker_te = require("replacer.pickers.telescope")
+local common = require("replacer.pickers.common")
+local cmd_mod = require("replacer.command")
 
---- Setup the plugin with user options and register :Replace.
----@param user RP_Config|nil
----@return nil
-function M.setup(user)
-	M.options = Config.resolve(user)
-	Cmd.register(function(old, new_text, scope, all)
-		M.run(old, new_text, scope, all)
-	end)
+--------------------------------------------------------------------------------
+-- Types (LuaLS)
+--------------------------------------------------------------------------------
+
+---@class RP_RunOverrides
+---@field literal boolean|nil
+---@field confirm_all boolean|nil
+
+--- Initialize/override configuration (delegates to replacer.config).
+--- @param opts RP_Config|table|nil
+--- @return nil
+function M.setup(opts)
+	cfg_mod.setup(opts)
 end
 
---- Execute the replace flow for given arguments.
----@param old string
----@param new_text string
----@param scope RP_Scope
----@param all boolean
----@return nil
-function M.run(old, new_text, scope, all)
-	if type(old) ~= "string" or old == "" then
-		vim.notify("[replacer] 'old' must be a non-empty string", vim.log.levels.ERROR)
-		return
-	end
-	if type(new_text) ~= "string" then
-		new_text = tostring(new_text or "")
-	end
+--- Public entry point.
+--- @param old string
+--- @param new_text string
+--- @param scope string
+--- @param non_interactive_all boolean  -- true: apply all, no picker
+--- @param overrides RP_RunOverrides|nil -- per-run overrides (literal/confirm_all)
+--- @return nil
+function M.run(old, new_text, scope, non_interactive_all, overrides)
+	-- Build effective config for this run without mutating global state.
+	local cfg = cfg_mod.resolve(overrides or {})
 
-	-- Resolve scope (cwd/file/dir)
-	local resolve = require("replacer.command").resolve_scope
-	local roots, _ = resolve(scope)
-	if type(roots) ~= "table" or #roots == 0 then
+	-- 1) collect matches (respects: literal, smart_case, hidden, exclude_git_dir, scope)
+	local roots, _ = cmd_mod.resolve_scope(scope)
+	if not roots or #roots == 0 then
+		-- resolve_scope already notified the user in edge-cases (e.g., unnamed buffer)
 		return
 	end
 
-	-- Collect matches via ripgrep
-	local items = RG.collect(old, roots, M.options) -- M.options: RP_Config
+	-- 2) applier
+	---@cast roots string[]
+	local items = rg.collect(old, roots, cfg)
 	if #items == 0 then
-		vim.notify("[replacer] no matches found")
+		vim.notify("[replacer] no matches", vim.log.levels.INFO)
 		return
 	end
 
-	-- Non-interactive "All" mode
-	if all then
-		if M.options.confirm_all then
-			local fileset = {} ---@type table<string, true>
-			for i = 1, #items do
-				fileset[items[i].path] = true
+	local function apply_func(chosen, replacement, write_changes)
+		return apply.apply_matches(chosen, replacement, write_changes)
+	end
+
+	-- 3) non-interactive ALL (e.g., :Replace!)
+	if non_interactive_all then
+		if cfg.confirm_all then
+			local fileset = {}
+			for _, it in ipairs(items) do
+				fileset[it.path] = true
 			end
 			local filecount = 0
 			for _ in pairs(fileset) do
 				filecount = filecount + 1
 			end
-			local msg = string.format("Apply replacement to ALL %d spot(s) across %d file(s)?", #items, filecount)
+			local msg = string.format("Apply ALL %d spot(s) across %d file(s)?", #items, filecount)
 			if vim.fn.confirm(msg, "&Yes\n&No", 2) ~= 1 then
 				vim.notify("[replacer] cancelled")
 				return
 			end
 		end
-		local files, spots = Apply.apply(items, new_text, M.options.write_changes)
-		vim.notify(string.format("[replacer] %d spot(s) in %d file(s)", spots, files))
+		local files, spots = apply_func(items, new_text, cfg.write_changes)
+		common.notify_result(files, spots)
 		return
 	end
 
-	-- Interactive picker dispatch (default to fzf if engine unset/unknown)
-	if M.options.engine == "telescope" then
-		require("replacer.pickers.telescope").run(items, new_text, M.options, Apply.apply)
+	-- 4) interactive picker
+	local engine = (cfg.engine or "fzf")
+	if engine == "fzf" then
+		picker_fz.run(items, new_text, cfg, apply_func)
 	else
-		require("replacer.pickers.fzf").run(items, new_text, M.options, Apply.apply)
+		picker_te.run(items, new_text, cfg, apply_func)
 	end
 end
 

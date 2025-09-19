@@ -17,22 +17,6 @@
 ---| "."      # alias for "cwd"
 ---| string   # absolute/relative file or directory path
 
-----------------
--- Config      --
-----------------
-
----@class RP_Config
----@field engine RP_Engine                 # Picker backend
----@field write_changes boolean            # Write buffers after replacement
----@field confirm_all boolean              # Ask before replacing all matches at once
----@field preview_context integer          # Lines of preview context per match
----@field hidden boolean                   # Include dotfiles in search
----@field git_ignore boolean               # Respect .gitignore (false => --no-ignore)
----@field exclude_git_dir boolean          # Exclude .git directory via --glob !.git
----@field literal boolean                  # Use --fixed-strings for ripgrep
----@field smart_case boolean               # Use -S (smart-case) for ripgrep
----@field fzf table|nil                    # Extra fzf-lua options (winopts, fzf_opts, …)
----@field telescope table|nil              # Extra telescope options (layout_config, …)
 
 -- rg module accepts the same config surface (subset used).
 ---@alias RP_RG_Config RP_Config
