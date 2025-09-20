@@ -22,18 +22,6 @@
 ---@alias RP_RG_Config RP_Config
 
 ----------------
--- Data model  --
-----------------
-
----@class RP_Match
----@field id integer                     # per-run unique
----@field path string                    # absolute file path
----@field lnum integer                   # 1-based line number
----@field col0 integer                   # 0-based byte column start
----@field old string                     # matched text (literal/regex as configured)
----@field line string                    # full line for preview (no trailing newline)
-
-----------------
 -- Public API  --
 ----------------
 
@@ -57,3 +45,13 @@
 ---@class ReplacerCommand
 ---@field register ReplacerRunRegisterFn
 ---@field resolve_scope ReplacerResolveScopeFn
+
+
+----------------
+-- apply.lua  -- Local extended match type to satisfy LuaLS when accessing optional fields.
+----------------
+
+---@class RP_MatchEx : RP_Match
+---@field mlen integer|nil
+---@field col1 integer|nil
+

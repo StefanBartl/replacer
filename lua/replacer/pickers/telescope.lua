@@ -1,23 +1,29 @@
 ---@module 'replacer.pickers.telescope'
 --- Telescope-based interactive selection with consistent UX:
----   - <Tab> toggles selection + moves forward, <S-Tab> toggles + moves back
----   - <CR> applies multi-selection if present, else just the current entry
----   - <C-a> applies ALL matches (optional confirmation via cfg.confirm_all)
+---   - <Tab>/<S-Tab>: toggle + move
+---   - <CR>: apply multi if present, else single
+---   - <C-a>: apply ALL (respects cfg.confirm_all)
+--- Preview:
+---   - Uses common.preview_lines_with_pos to compute exact (row,col)
+---   - Highlights the target span via extmarks (hl_group = "ReplacerTarget")
 ---
---- Design notes:
----   - This picker mirrors the behavior of the fzf-lua variant; both share
----     `replacer.pickers.common` for display formatting, preview text, and notifications.
----   - We keep everything in `attach_mappings` to override default actions cleanly.
+--- Notes:
+---   - We highlight only when a literal old-length is available (cfg._old_len > 0).
+---   - For regex, extend the collector to provide match length/col1 if needed.
 
 local common = require("replacer.pickers.common")
+
 
 --------------------------------------------------------------------------------
 -- Implementation
 --------------------------------------------------------------------------------
 
+-- Use an extmark namespace for clean highlight management
+local NS = vim.api.nvim_create_namespace("replacer_preview")
+
 ---@param items RP_Match[]
 ---@param new_text string
----@param cfg RP_Config
+---@param cfg RP_Config            -- receives _old_len optionally (we cast below)
 ---@param apply_func fun(items: RP_Match[], new_text: string, write_changes: boolean): (integer, integer)
 ---@return nil
 local function run(items, new_text, cfg, apply_func)
@@ -38,6 +44,12 @@ local function run(items, new_text, cfg, apply_func)
     return
   end
 
+  -- Let LuaLS know that cfg may carry `_old_len`
+  ---@cast cfg RP_ConfigPicker
+
+  -- Ensure a visible highlight group; harmless if repeatedly called.
+  pcall(vim.api.nvim_set_hl, 0, "ReplacerTarget", { link = "Search" })
+
   ---@param it RP_Match
   local function entry_maker(it)
     return {
@@ -56,9 +68,21 @@ local function run(items, new_text, cfg, apply_func)
         vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, { "[no selection]" })
         return
       end
-      local out = common.preview_lines(it.path, it.lnum, cfg.preview_context)
+
+      local lines, row0, col0 = common.preview_lines_with_pos(it, cfg.preview_context)
       vim.bo[self.state.bufnr].filetype = "" -- neutral to avoid syntax noise
-      vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, out)
+      vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+
+      -- Clear previous extmarks & apply fresh highlight if length is known
+      vim.api.nvim_buf_clear_namespace(self.state.bufnr, NS, 0, -1)
+      local len = tonumber(cfg._old_len or 0) or 0
+      if len > 0 and row0 >= 0 and col0 >= 0 then
+        -- extmark-based highlight (recommended API). end_col is exclusive.
+        pcall(vim.api.nvim_buf_set_extmark, self.state.bufnr, NS, row0, col0, {
+          end_col = col0 + len,
+          hl_group = "ReplacerTarget",
+        })
+      end
     end,
   })
 
@@ -68,7 +92,10 @@ local function run(items, new_text, cfg, apply_func)
   local picker = pickers.new(theme_opts, {
     prompt_title = "Select matches",
     sorter = conf.values.generic_sorter(theme_opts),
-    finder = finders.new_table({ results = items, entry_maker = entry_maker }),
+    finder = finders.new_table({
+      results = items,
+      entry_maker = entry_maker,
+    }),
     previewer = previewer,
 
     attach_mappings = function(prompt_bufnr, map)
@@ -116,9 +143,7 @@ local function run(items, new_text, cfg, apply_func)
       local function do_all()
         if cfg.confirm_all then
           local msg = string.format("Apply replacement to ALL %d spot(s)?", #items)
-          if vim.fn.confirm(msg, "&Yes\n&No", 2) ~= 1 then
-            return
-          end
+          if vim.fn.confirm(msg, "&Yes\n&No", 2) ~= 1 then return end
         end
         local files, spots = apply_func(items, new_text, cfg.write_changes)
         common.notify_result(files, spots)

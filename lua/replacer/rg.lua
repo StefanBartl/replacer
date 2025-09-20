@@ -24,7 +24,7 @@ local function collect(old, roots, cfg)
   if cfg.smart_case     then args[#args+1] = "-S" end
   if cfg.literal        then args[#args+1] = "--fixed-strings" end
   if cfg.hidden         then args[#args+1] = "--hidden" end
-  if cfg.git_ignore == false then args[#args+1] = "--no-ignore" end
+  if cfg.exclude_git_dir == false then args[#args+1] = "--no-ignore" end
   if cfg.exclude_git_dir then
     args[#args+1] = "--glob"
     args[#args+1] = "!.git"

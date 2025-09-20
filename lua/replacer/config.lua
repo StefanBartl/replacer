@@ -55,7 +55,10 @@ end
 
 ---@param v any @returns "fzf"|"telescope"|nil
 local function as_engine(v)
-  if v == "fzf" or v == "telescope" then return v end
+  if type(v) ~= "string" then return nil end
+  local s = v:lower():gsub("%s+", ""):gsub("%-", "_")
+  if s == "fzf" or s == "fzf_lua" then return "fzf" end
+  if s == "telescope" then return "telescope" end
   return nil
 end
 
@@ -70,15 +73,15 @@ local function validate(cfg)
 
   local out = vim.deepcopy(Defaults)
 
-  out.engine             = as_engine(cfg.engine) or out.engine
-  out.write_changes      = as_bool(cfg.write_changes)     or out.write_changes
-  out.confirm_all        = as_bool(cfg.confirm_all)       or out.confirm_all
+  out.engine             = as_engine(cfg.engine)           or out.engine
+  out.write_changes      = as_bool(cfg.write_changes)      or out.write_changes
+  out.confirm_all        = as_bool(cfg.confirm_all)        or out.confirm_all
   out.confirm_wide_scope = as_bool(cfg.confirm_wide_scope) or out.confirm_wide_scope
   out.preview_context    = as_pos_int(cfg.preview_context) or out.preview_context
-  out.hidden             = as_bool(cfg.hidden)            or out.hidden
-  out.exclude_git_dir    = as_bool(cfg.exclude_git_dir)   or out.exclude_git_dir
-  out.literal            = as_bool(cfg.literal)           or out.literal
-  out.smart_case         = as_bool(cfg.smart_case)        or out.smart_case
+  out.hidden             = as_bool(cfg.hidden)             or out.hidden
+  out.exclude_git_dir    = as_bool(cfg.exclude_git_dir)    or out.exclude_git_dir
+  out.literal            = as_bool(cfg.literal)            or out.literal
+  out.smart_case         = as_bool(cfg.smart_case)         or out.smart_case
 
   if type(cfg.default_scope) == "string" and cfg.default_scope ~= "" then
     out.default_scope = cfg.default_scope

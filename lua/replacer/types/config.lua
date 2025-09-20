@@ -18,6 +18,7 @@
 ---@field hidden               boolean
 ---@field exclude_git_dir      boolean
 ---@field literal              boolean     -- default search mode (flags may override per-run)
+---@field _old_len?	           number
 ---@field smart_case           boolean
 ---@field default_scope        string      -- "%", "cwd", ".", or explicit path
 ---@field fzf                  RP_PickerFzf|nil

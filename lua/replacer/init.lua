@@ -45,7 +45,14 @@ function M.run(old, new_text, scope, non_interactive_all, overrides)
 	-- Build effective config for this run without mutating global state.
 	local cfg = cfg_mod.resolve(overrides or {})
 
+	if cfg.literal then
+		cfg._old_len = #old
+	else
+		cfg._old_len = 0
+	end
+
 	-- 1) collect matches (respects: literal, smart_case, hidden, exclude_git_dir, scope)
+
 	local roots, _ = cmd_mod.resolve_scope(scope)
 	if not roots or #roots == 0 then
 		-- resolve_scope already notified the user in edge-cases (e.g., unnamed buffer)
@@ -61,7 +68,7 @@ function M.run(old, new_text, scope, non_interactive_all, overrides)
 	end
 
 	local function apply_func(chosen, replacement, write_changes)
-		return apply.apply_matches(chosen, replacement, write_changes)
+		return apply.apply_matches(chosen, old, replacement, write_changes, cfg)
 	end
 
 	-- 3) non-interactive ALL (e.g., :Replace!)

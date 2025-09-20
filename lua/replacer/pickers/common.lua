@@ -1,17 +1,22 @@
 ---@module 'replacer.pickers.common'
---- Small shared utilities for all pickers (Telescope / fzf-lua).
+--- Shared helpers used by both pickers (Telescope / fzf-lua).
 --- Responsibilities:
----   - Consistent list display formatting (path:lnum:col — line)
----   - Building preview window content with context lines
----   - Uniform result notification
+---   - Consistent list display formatting
+---   - Preview text generation with context
+---   - (NEW) Preview with exact target position for highlighting
+---   - Uniform result notifications
 ---
 --- Notes:
----   - `preview_lines` reads files synchronously and is intentionally simple.
----     If your match volume is huge or files are very big, consider a lazy/async
----     variant later. For now, correctness and clarity win.
----   - All comments are in English (per project guidelines).
+---   - We operate on byte indices (Lua's `#` on strings) which matches ripgrep's
+---     byte-based columns (`it.col0`). This keeps UTF-8 safe for our purposes.
+---   - `preview_lines_with_pos` returns the 0-based row/col where the match starts
+---     inside the preview buffer. Pickers decide how to highlight (buf HL vs ANSI).
 
 local M = {}
+
+--------------------------------------------------------------------------------
+-- Display line for list entries
+--------------------------------------------------------------------------------
 
 ---@param it RP_Match
 ---@return string
@@ -25,46 +30,76 @@ function M.format_display(it)
   )
 end
 
---- Build preview buffer lines around a match line.
---- The match line is marked with "▶ " and left-padded line numbers for orientation.
---- @param path string
---- @param lnum integer     -- 1-based
---- @param ctx integer      -- number of lines of context on each side (>= 0)
---- @return string[]
-function M.preview_lines(path, lnum, ctx)
-  if type(path) ~= "string" or path == "" or type(lnum) ~= "number" then
-    return { "[invalid selection]" }
-  end
-  ctx = (type(ctx) == "number" and ctx >= 0) and ctx or 2
+--------------------------------------------------------------------------------
+-- Preview helpers
+--------------------------------------------------------------------------------
 
-  local ok, fh = pcall(io.open, path, "r")
+--- Build preview lines around a match and compute the exact target position.
+--- Returns:
+---   - target_col0: 0-based byte column within that row
+--- @param it RP_Match
+--- @param ctx integer
+--- @return string[] lines, integer target_row0, integer target_col0
+function M.preview_lines_with_pos(it, ctx)
+  -- Read entire file (simple & robust; fast enough for typical preview sizes).
+  local ok, fh = pcall(io.open, it.path, "r")
   if not ok or not fh then
-    return { "[unreadable]" }
+    return { "[unreadable]" }, 0, 0
   end
-
   ---@type string[]
-  local lines = {}
-  for s in fh:lines() do
-    lines[#lines + 1] = s
-  end
+  local file = {}
+  for s in fh:lines() do file[#file + 1] = s end
   fh:close()
 
-  local s = math.max(1, lnum - ctx)
-  local e = math.min(#lines, lnum + ctx)
+  -- Clamp window to available lines
+  local pad = (type(ctx) == "number" and ctx >= 0) and ctx or 2
+  local start = math.max(1, it.lnum - pad)
+  local stop  = math.min(#file, it.lnum + pad)
 
   ---@type string[]
   local out = {}
-  for i = s, e do
-    local mark = (i == lnum) and "▶ " or "  "
-    out[#out + 1] = string.format("%s%6d  %s", mark, i, tostring(lines[i] or ""))
+  local target_row0, target_col0 = 0, 0
+
+  for i = start, stop do
+    local is_hit = (i == it.lnum)
+    local mark = is_hit and "▶ " or "  "
+    -- Build full preview line
+    local content = tostring(file[i] or "")
+    local line = string.format("%s%6d  %s", mark, i, content)
+    out[#out + 1] = line
+
+    if is_hit then
+      -- Compute byte length of the prefix as rendered above*:
+      local prefix = mark .. string.format("%6d", i) .. "  "
+      -- 0-based row index within the preview block
+      target_row0 = (#out - 1)
+      -- 0-based col: prefix bytes + original match byte column
+      target_col0 = #prefix + (it.col0 or 0)
+    end
   end
-  return out
+
+  return out, target_row0, target_col0
 end
 
---- Uniform success notification for applied replacements.
+-- --- Back-compat wrapper: only preview text (no coordinates).
+-- --- @param path string
+-- --- @param lnum integer
+-- --- @param ctx integer
+-- --- @return string[]
+-- function M.preview_lines(path, lnum, ctx)
+--   local it = { path = path, lnum = lnum, col0 = 0, line = "" } ---@type RP_Match
+--   local lines = M.preview_lines_with_pos(it, ctx)
+--   ---@cast lines string[]  -- first return of the tuple
+--   return lines
+-- end
+
+--------------------------------------------------------------------------------
+-- Notifications
+--------------------------------------------------------------------------------
+
+--- Uniform success notification.
 --- @param files integer
 --- @param spots integer
---- @return nil
 function M.notify_result(files, spots)
   vim.notify(string.format("[replacer] %d spot(s) in %d file(s)", spots, files))
 end
