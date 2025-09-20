@@ -7,6 +7,8 @@
 5. Comments lectures
 6. :h
 7. github repo detaillierter mit infos versorgen
+8.  check, ob fzf lua installiert ist, dann dies benutzen, oder nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
+9. errormessages besser schreiben die an user gehen, so wie "wrong number of arguments" ist nicht besonders ...
 
 ## Features
 

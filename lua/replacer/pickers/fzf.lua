@@ -1,148 +1,117 @@
 ---@module 'replacer.pickers.fzf'
---- fzf-lua based interactive selection with UX parity to Telescope:
----   - <Tab> multi-select (fzf shows "*" marker)
----   - <CR> applies multi if present, else single
----   - <C-a> applies ALL (respects cfg.confirm_all)
---- Preview:
----   - Uses common.preview_lines_with_pos to compute exact (row,col)
----   - Highlights the target span via ANSI (requires --ansi)
+--- fzf-lua picker using the official builtin previewer:
+---  - Pass buffer_or_file ctor + grep hints so previewer highlights FULL span.
 ---
---- Notes:
----   - We highlight only when a literal old-length is available (cfg._old_len > 0).
----     For regex, extend the collector to provide match length/col1 if needed.
+--- Keys:
+---  - <Tab>  multi-select (marker "*")
+---  - <CR>   apply multi if present, else single
+---  - <C-a>  apply ALL (respects cfg.confirm_all)
 
 local common = require("replacer.pickers.common")
 
---------------------------------------------------------------------------------
--- Implementation
---------------------------------------------------------------------------------
-
+---@param old string
 ---@param items RP_Match[]
 ---@param new_text string
----@param cfg RP_Config         -- receives _old_len optionally (we cast below)
+---@param cfg RP_Config            -- expects: literal, write_changes, fzf?, _last_query?
 ---@param apply_func fun(items: RP_Match[], new_text: string, write_changes: boolean): (integer, integer)
----@return nil
-local function run(items, new_text, cfg, apply_func)
+local function run(old, items, new_text, cfg, apply_func)
   local ok_fzf, fzf = pcall(require, "fzf-lua")
   if not ok_fzf then
     vim.notify("[replacer] fzf-lua not found", vim.log.levels.ERROR)
     return
   end
 
-  ---@cast cfg RP_ConfigPicker
+  local last_query = tostring(old or "")
 
-  ---@type string[]                -- display lines with trailing \tIDxxx
-  local source = {}
-  ---@type table<string, RP_Match> -- "ID<n>" -> match
-  local idmap = {}
-
+  -- Build candidates in "file:line:col: text\tIDxx"
+  local source, idmap = {}, {}
   for i = 1, #items do
-    ---@cast items RP_Match[]
-    local it = items[i]
-    local visible = common.format_display(it)
-    local hidden = string.format("ID%d", it.id)
+    local it = items[i] --[[@as RP_Match]]
+    local rel = vim.fn.fnamemodify(it.path, ":.")
+    local visible = string.format("%s:%d:%d: %s", rel, it.lnum, it.col0 + 1, it.line)
+    local hidden  = string.format("ID%d", it.id)
     source[#source + 1] = visible .. "\t" .. hidden
     idmap[hidden] = it
   end
 
-  local opts = vim.tbl_deep_extend("force", {
+  -- Official previewer ctor (do NOT call it; pass the ctor function)
+  local ctor
+  do
+    local ok_prev, Previewer = pcall(require, "fzf-lua.previewer")
+    if ok_prev and Previewer and Previewer.builtin and Previewer.builtin.buffer_or_file then
+      ctor = Previewer.builtin.buffer_or_file
+    end
+  end
+
+  -- Grep provider + last_query so previewer can highlight full span
+  local grep_fn; pcall(function() grep_fn = require("fzf-lua.providers.grep").grep end)
+  local ok_utils, utils = pcall(require, "fzf-lua.utils")
+  if ok_utils and utils and (cfg.literal ~= false) then
+    last_query = utils.rg_escape(last_query)
+  end
+
+  local actions = {
+    ["default"] = function(selected)
+      if not selected or #selected == 0 then return end
+      local chosen = {} ---@type RP_Match[]
+      for _, line in ipairs(selected) do
+        local s = type(line) == "table" and line[1] or line
+        local id = (type(s) == "string") and s:match("\t(ID%d+)$") or nil
+        local it = id and idmap[id] or nil
+        if it then chosen[#chosen + 1] = it end
+      end
+      if #chosen == 0 then return end
+      local files, spots = apply_func(chosen, new_text, cfg.write_changes)
+      common.notify_result(files, spots)
+    end,
+    ["ctrl-a"] = function()
+      local all = {} ---@type RP_Match[]
+      for _, s in ipairs(source) do
+        local id = s:match("\t(ID%d+)$")
+        local it = id and idmap[id] or nil
+        if it then all[#all + 1] = it end
+      end
+      if #all == 0 then return end
+      if cfg.confirm_all then
+        local fileset = {}; for _, it in ipairs(all) do fileset[it.path] = true end
+        local fc = 0; for _ in pairs(fileset) do fc = fc + 1 end
+        if vim.fn.confirm(
+          string.format("Apply replacement to ALL %d spot(s) across %d file(s)?", #all, fc),
+          "&Yes\n&No", 2) ~= 1 then
+          vim.notify("[replacer] cancelled"); return
+        end
+      end
+      local files, spots = apply_func(all, new_text, cfg.write_changes)
+      common.notify_result(files, spots)
+    end,
+  }
+
+  local base = {
     prompt = "Select matches> ",
     fzf_opts = {
-      ["--multi"] = "",
-      ["--with-nth"] = "1",
+      ["--multi"]     = true,
+      ["--with-nth"]  = "1",
       ["--delimiter"] = "\t",
-      ["--no-mouse"] = "",
-      ["--marker"] = "*",
-      ["--ansi"] = "", -- enable ANSI colors in preview
+      ["--no-mouse"]  = true,
+      ["--marker"]    = "*",
     },
-    previewer = "builtin",
-    fn_previewer = function(item)
-      local line = type(item) == "table" and item[1] or item
-      if type(line) ~= "string" then
-        return { "[no selection]" }
-      end
-      local id = line:match("\t(ID%d+)$")
-      local it = id and idmap[id] or nil
-      if not it then
-        return { "[unknown id]" }
-      end
+    actions = actions,
+  }
+  local opts = vim.tbl_deep_extend("force", base, cfg.fzf or {})
 
-      local lines, row0, col0 = common.preview_lines_with_pos(it, cfg.preview_context)
+  -- Ensure preview is visible unless user explicitly hid it
+  opts.winopts = opts.winopts or {}
+  opts.winopts.preview = opts.winopts.preview or {}
+  if opts.winopts.preview.hidden == nil then
+    opts.winopts.preview.hidden = false
+  end
 
-      -- ANSI highlight (only if we know the literal length)
-      local len = tonumber(cfg._old_len or 0) or 0
-      if len > 0 and row0 >= 0 and col0 >= 0 then
-        local target = lines[row0 + 1]
-        if type(target) == "string" then
-          -- convert 0-based byte indices to 1-based for Lua substring()
-          local s1 = col0 + 1
-          local e1 = col0 + len
-          local n = #target
-          if s1 >= 1 and s1 <= n and e1 >= s1 and e1 <= n then
-            local ac = fzf.utils.ansi_codes
-            lines[row0 + 1] = table.concat({
-              target:sub(1, s1 - 1),
-              ac.yellow, target:sub(s1, e1), ac.reset,
-              target:sub(e1 + 1),
-            })
-          end
-        end
-      end
-
-      return lines
-    end,
-    actions = {
-      -- <CR>: apply selection (multi if present, else single)
-      ["default"] = function(selected)
-        if not selected or #selected == 0 then
-          return
-        end
-        ---@type RP_Match[]
-        local chosen = {}
-        for _, line in ipairs(selected) do
-          local s = type(line) == "table" and line[1] or line
-          local xid = (type(s) == "string") and s:match("\t(ID%d+)$") or nil
-          local it = xid and idmap[xid] or nil
-          if it then
-            chosen[#chosen + 1] = it
-          end
-        end
-        if #chosen == 0 then
-          return
-        end
-        local files, spots = apply_func(chosen, new_text, cfg.write_changes)
-        common.notify_result(files, spots)
-      end,
-
-      -- <C-a>: apply ALL (optional confirmation)
-      ["ctrl-a"] = function()
-        ---@type RP_Match[]
-        local all = {}
-        for _, line in ipairs(source) do
-          local xid = line:match("\t(ID%d+)$")
-          local it = xid and idmap[xid] or nil
-          if it then
-            all[#all + 1] = it
-          end
-        end
-        if #all == 0 then
-          return
-        end
-        if cfg.confirm_all then
-          local fileset = {} ---@type table<string, true>
-          for _, it in ipairs(all) do fileset[it.path] = true end
-          local filecount = 0; for _ in pairs(fileset) do filecount = filecount + 1 end
-          local msg = string.format("Apply replacement to ALL %d spot(s) across %d file(s)?", #all, filecount)
-          if vim.fn.confirm(msg, "&Yes\n&No", 2) ~= 1 then
-            vim.notify("[replacer] cancelled")
-            return
-          end
-        end
-        local files, spots = apply_func(all, new_text, cfg.write_changes)
-        common.notify_result(files, spots)
-      end,
-    },
-  }, cfg.fzf or {})
+  -- Wire official previewer + grep hints (full-span highlight)
+  if ctor and grep_fn and last_query ~= "" then
+    opts.previewer   = { _ctor = ctor }
+    opts.__ACT_TO    = grep_fn
+    opts._last_query = last_query
+  end
 
   fzf.fzf_exec(source, opts)
 end

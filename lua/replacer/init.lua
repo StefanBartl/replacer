@@ -96,7 +96,7 @@ function M.run(old, new_text, scope, non_interactive_all, overrides)
 	-- 4) interactive picker
 	local engine = (cfg.engine or "fzf")
 	if engine == "fzf" then
-		picker_fz.run(items, new_text, cfg, apply_func)
+		picker_fz.run(old, items, new_text, cfg, apply_func)
 	else
 		picker_te.run(items, new_text, cfg, apply_func)
 	end
