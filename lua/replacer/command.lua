@@ -29,55 +29,58 @@ local uv = vim.uv or vim.loop
 -- Tokenizer
 --------------------------------------------------------------------------------
 
----@nodiscard
+-- Extend tokenizer so backslash escapes are honored even outside of quotes.
+-- This allows inputs like: :Replace \"test\" ok %
+
 ---@param s string
 ---@return string[] tokens
 local function parse_args(s)
-  -- Shell-like tokenizer supporting:
-  --  - double and single quotes ("..."/'...')
-  --  - backslash escaping inside quotes (\" or \')
-  --  - unquoted tokens separated by whitespace
   local out = {} ---@type string[]
-  if not s or s == "" then
-    return out
-  end
+  if not s or s == "" then return out end
 
   local i, n = 1, #s
   while i <= n do
     -- skip whitespace
-    while i <= n and s:sub(i, i):match("%s") do
-      i = i + 1
-    end
+    while i <= n and s:sub(i,i):match("%s") do i = i + 1 end
     if i > n then break end
 
-    local c = s:sub(i, i)
+    local c = s:sub(i,i)
     if c == '"' or c == "'" then
-      -- quoted token
+      -- quoted token (existing behavior)
       local q = c
       i = i + 1
       local buf = {} ---@type string[]
       while i <= n do
-        local ch = s:sub(i, i)
+        local ch = s:sub(i,i)
         if ch == "\\" and i < n then
-          -- escape next char verbatim
-          buf[#buf + 1] = s:sub(i + 1, i + 1)
+          -- escape next char inside quotes
+          buf[#buf+1] = s:sub(i+1,i+1)
           i = i + 2
         elseif ch == q then
           i = i + 1
           break
         else
-          buf[#buf + 1] = ch
+          buf[#buf+1] = ch
           i = i + 1
         end
       end
-      out[#out + 1] = table.concat(buf)
+      out[#out+1] = table.concat(buf)
     else
-      -- unquoted token
+      -- unquoted token, but honor backslash escapes here as well
       local j = i
-      while j <= n and not s:sub(j, j):match("%s") do
-        j = j + 1
+      local buf = {} ---@type string[]
+      while j <= n and not s:sub(j,j):match("%s") do
+        local ch = s:sub(j,j)
+        if ch == "\\" and j < n then
+          -- consume backslash and take next char verbatim
+          buf[#buf+1] = s:sub(j+1,j+1)
+          j = j + 2
+        else
+          buf[#buf+1] = ch
+          j = j + 1
+        end
       end
-      out[#out + 1] = s:sub(i, j - 1)
+      out[#out+1] = table.concat(buf)
       i = j
     end
   end
