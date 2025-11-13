@@ -22,17 +22,18 @@
 ----------------
 
 ---@class RP_HighlightConfig
----@field enabled boolean           -- whether to enable ext highlight preview
----@field strikethrough boolean     -- add strikethrough to the old text
----@field underline boolean         -- add underline to the old text
----@field old_bg string|nil         -- background color for old text (hex like "#FF7A29")
----@field old_fg string|nil         -- foreground color for old text
----@field new_fg string|nil         -- foreground color for new text (virt-text)
----@field virt_prefix string        -- prefix for virtual-text (e.g. " → ")
----@field hl_priority integer|nil   -- highlight priority (use vim.hl.priorities.*)
----@field ansi_old_bg string|nil    -- fallback ANSI color for fzf previews (e.g. "41" for red bg)
----@field ansi_new_fg string|nil    -- fallback ANSI color for fzf previews (e.g. "32" for green)
----@field preview_marker string|nil -- string used as line marker in preview (e.g. "▶ " or ">> ")
+---@field enabled boolean            -- enable external preview highlighting
+---@field old_bg string|nil          -- hex color for "old" background (e.g. "#FF7A29")
+---@field old_fg string|nil          -- hex color for "old" foreground
+---@field new_fg string|nil          -- hex color for virtual "new" text
+---@field strikethrough boolean|nil  -- draw strikethrough over old text
+---@field underline boolean|nil      -- underline old text (alternative)
+---@field virt_prefix string|nil     -- prefix string for virtual hint (default " → ")
+---@field preview_marker string|nil  -- marker for the preview line (default "▶ ")
+---@field ani_old_bg string|nil      -- ANSI color code (or full sequence) for old (fzf fallback)
+---@field ansi_new_fg string|nil     -- ANSI color for new hint (fzf fallback)
+---@field ansi_fallback boolean
+---@field debug boolean|nil          -- enable debug notifications in preview code
 
 ---@class RP_Config
 ---@field engine RP_Engine
@@ -46,7 +47,9 @@
 ---@field smart_case boolean
 ---@field fzf table|nil
 ---@field telescope table|nil
----@field ext_highlight_opts RP_HighlightConfig
+---@field ext_highlight boolean
+---@field ext_highlight_strikethrough boolean
+---@field ext_highlight_opts RP_HighlightConfig|nil
 
 -- rg module accepts the same config surface (subset used).
 ---@alias RP_RG_Config RP_Config
@@ -87,3 +90,12 @@
 ---@class ReplacerCommand
 ---@field register ReplacerRunRegisterFn
 ---@field resolve_scope ReplacerResolveScopeFn
+
+----------------
+-- fzf         --
+----------------
+
+---@class PreviewBufState
+---@field win number|nil
+---@field buf number|nil
+---@field ns number
