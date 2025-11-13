@@ -1,6 +1,6 @@
 # replacer.nvim
 
-![version](https://img.shields.io/badge/version-0.3-blue.svg)
+![version](https://img.shields.io/badge/version-0.4-blue.svg)
 ![State](https://img.shields.io/badge/status-beta-orange.svg)
 ![Lazy.nvim compatible](https://img.shields.io/badge/lazy.nvim-supported-success)
 ![Neovim](https://img.shields.io/badge/Neovim-0.9+-success.svg)
