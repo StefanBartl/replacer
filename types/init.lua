@@ -21,18 +21,32 @@
 -- Config      --
 ----------------
 
+---@class RP_HighlightConfig
+---@field enabled boolean           -- whether to enable ext highlight preview
+---@field strikethrough boolean     -- add strikethrough to the old text
+---@field underline boolean         -- add underline to the old text
+---@field old_bg string|nil         -- background color for old text (hex like "#FF7A29")
+---@field old_fg string|nil         -- foreground color for old text
+---@field new_fg string|nil         -- foreground color for new text (virt-text)
+---@field virt_prefix string        -- prefix for virtual-text (e.g. " → ")
+---@field hl_priority integer|nil   -- highlight priority (use vim.hl.priorities.*)
+---@field ansi_old_bg string|nil    -- fallback ANSI color for fzf previews (e.g. "41" for red bg)
+---@field ansi_new_fg string|nil    -- fallback ANSI color for fzf previews (e.g. "32" for green)
+---@field preview_marker string|nil -- string used as line marker in preview (e.g. "▶ " or ">> ")
+
 ---@class RP_Config
----@field engine RP_Engine                 # Picker backend
----@field write_changes boolean            # Write buffers after replacement
----@field confirm_all boolean              # Ask before replacing all matches at once
----@field preview_context integer          # Lines of preview context per match
----@field hidden boolean                   # Include dotfiles in search
----@field git_ignore boolean               # Respect .gitignore (false => --no-ignore)
----@field exclude_git_dir boolean          # Exclude .git directory via --glob !.git
----@field literal boolean                  # Use --fixed-strings for ripgrep
----@field smart_case boolean               # Use -S (smart-case) for ripgrep
----@field fzf table|nil                    # Extra fzf-lua options (winopts, fzf_opts, …)
----@field telescope table|nil              # Extra telescope options (layout_config, …)
+---@field engine RP_Engine
+---@field write_changes boolean
+---@field confirm_all boolean
+---@field preview_context integer
+---@field hidden boolean
+---@field git_ignore boolean
+---@field exclude_git_dir boolean
+---@field literal boolean
+---@field smart_case boolean
+---@field fzf table|nil
+---@field telescope table|nil
+---@field ext_highlight_opts RP_HighlightConfig
 
 -- rg module accepts the same config surface (subset used).
 ---@alias RP_RG_Config RP_Config
