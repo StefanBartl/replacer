@@ -70,11 +70,14 @@ After picker opened:
 * Enter: apply to the currently selected entries
 * Tab: toggle selection
 * Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
+* r: replace selected match
 
 **Telescope:**
 
 * Enter: apply to the highlighted entry
+* Tab: toggle selection
 * Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
+* r: replace selected match
 
 ---
 
@@ -132,13 +135,11 @@ After picker opened:
     engine = "telescope",      -- "fzf" | "telescope"
     write_changes = true,      -- write buffers after replace
     confirm_all = true,        -- ask before replacing all
-    preview_context = 3,       -- lines of context in preview
     hidden = true,             -- include dotfiles
     git_ignore = true,         -- respect .gitignore
     exclude_git_dir = true,    -- skip .git/ explicitly
     literal = true,            -- fixed-strings by default
     smart_case = true,         -- ripgrep -S
-    preview_marker = "│",      -- custom marker in preview highlight
     fzf = {                    -- extra fzf-lua options (optional)
       winopts = { width = 0.85, height = 0.70 },
     },
@@ -183,8 +184,6 @@ require("replacer").setup({
   engine = "telescope",
   write_changes = false,
   confirm_all = true,
-  preview_context = 4,
-  preview_marker = "│",
   hidden = true,
   git_ignore = true,
   exclude_git_dir = true,
