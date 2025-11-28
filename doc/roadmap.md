@@ -1,5 +1,6 @@
 # Roadmap für 'Replacer'
 
+<<<<<<< Updated upstream
 1. mehrmalige vorkommen innerhalb einer Zeile mpssen kebenfalls replaced werden fc
 2. literal und andere optionen ssollem auch im command mitgegeben werden können
 3. user config weiter ausbauen
@@ -9,6 +10,16 @@
 7. github repo detaillierter mit infos versorgen
 8.  check, ob fzf lua installiert ist, dann dies benutzen, oder nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
 9. errormessages besser schreiben die an user gehen, so wie "wrong number of arguments" ist nicht besonders ...
+=======
+- :h
+- github repo detaillierter mit infos versorgen
+- Range erlauben
+
+- Zusätzliche Funktion, die neben dem Source Code auch Änderungen von Dateinamen und Ordnern möglich macht
+    - Eigener Picker nur mit Dateinamen/Ordnern
+    - Gemeinsamen Picker, indem Source Code und Dateinamen (speziell highlighted) aufgelistet werden
+    - Änderung wird auf importe/exporte angewandt
+>>>>>>> Stashed changes
 
 ## Features
 
