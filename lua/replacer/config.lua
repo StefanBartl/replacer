@@ -30,6 +30,7 @@ local Defaults = {
 
   fzf = { winopts = { width = 0.85, height = 0.70 } },
   telescope = { layout_config = { width = 0.85, height = 0.70 } },
+  git_ignore = true,
 }
 
 ---@type RP_Config
