@@ -19,6 +19,9 @@
     - Eigener Picker nur mit Dateinamen/Ordnern
     - Gemeinsamen Picker, indem Source Code und Dateinamen (speziell highlighted) aufgelistet werden
     - Änderung wird auf importe/exporte angewandt
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 ## Features
