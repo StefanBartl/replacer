@@ -1,0 +1,485 @@
+*replacer.txt*  Project-wide search and replace with interactive picker
+
+Author:  Stefan Bartl
+License: MIT
+Version: 0.5
+
+==============================================================================
+CONTENTS                                                   *replacer-contents*
+
+    1. Introduction ......................... |replacer-introduction|
+    2. Requirements ......................... |replacer-requirements|
+    3. Installation ......................... |replacer-installation|
+    4. Quick Start .......................... |replacer-quickstart|
+    5. Commands ............................. |replacer-commands|
+    6. Configuration ........................ |replacer-configuration|
+    7. Picker Mappings ...................... |replacer-mappings|
+    8. Advanced Usage ....................... |replacer-advanced|
+    9. Troubleshooting ...................... |replacer-troubleshooting|
+   10. API .................................. |replacer-api|
+   11. About ................................ |replacer-about|
+
+==============================================================================
+1. INTRODUCTION                                       *replacer-introduction*
+
+Replacer provides project-wide search-and-replace with:
+
+• Ripgrep-powered search with precise match coordinates
+• Interactive selection via fzf-lua or Telescope
+• Live context preview around each match
+• UTF-8 multi-byte character support (umlauts, emoji, etc.)
+• Replace only selected occurrences or all at once
+• Bottom-up in-buffer edits to avoid offset shift bugs
+• Literal mode by default; optional regex mode
+• Multiple occurrences per line handled correctly
+
+==============================================================================
+2. REQUIREMENTS                                       *replacer-requirements*
+
+• Neovim 0.9 or newer
+• ripgrep (rg) in PATH: https://github.com/BurntSushi/ripgrep
+• ONE of the following pickers:
+  - telescope.nvim (+ plenary.nvim): https://github.com/nvim-telescope/telescope.nvim
+  - fzf-lua: https://github.com/ibhagwan/fzf-lua
+
+==============================================================================
+3. INSTALLATION                                       *replacer-installation*
+
+With lazy.nvim: >lua
+    {
+      "StefanBartl/replacer.nvim",
+      name = "replacer.nvim",
+      main = "replacer",
+      opts = {
+        engine = "telescope",  -- or "fzf"
+        write_changes = true,
+        confirm_all = true,
+      },
+    }
+<
+
+With packer.nvim: >lua
+    use {
+      "StefanBartl/replacer.nvim",
+      config = function()
+        require("replacer").setup({
+          engine = "telescope",
+        })
+      end,
+    }
+<
+
+==============================================================================
+4. QUICK START                                          *replacer-quickstart*
+
+Basic usage: >vim
+    :Replace old new %           " current buffer
+    :Replace old new cwd         " current directory
+    :Replace old new /path       " specific path
+    :Replace old new cwd All     " replace all without picker
+<
+
+With quotes (spaces, special chars): >vim
+    :Replace "foo bar" "baz qux" %
+    :Replace \"test\" ok %
+<
+
+In picker (Telescope/fzf-lua):
+    <CR>      Apply to selected entry/entries
+    <Tab>     Toggle selection (multi-select)
+    <C-a>     Replace all matches at once
+    r         Replace single entry and reopen picker
+
+==============================================================================
+5. COMMANDS                                              *replacer-commands*
+
+                                                                   *:Replace*
+:Replace {old} {new} {scope?} {All?}
+    Search for {old} and replace with {new}.
+
+    Parameters:~
+        {old}    Pattern to search (literal or regex, see config)
+        {new}    Replacement text; empty string deletes matches
+        {scope}  Optional scope (default: cwd):
+                   %       - current buffer (file-backed)
+                   buf     - alias for %
+                   cwd     - current working directory
+                   .       - alias for cwd
+                   <path>  - explicit file or directory
+        {All}    Optional token; non-interactive replace all
+
+    Examples:~
+        :Replace foo bar %
+        :Replace "test.*" new cwd
+        :Replace old new . All
+
+                                                                 *:Replacer*
+:Replacer {args}
+    Alias for |:Replace|
+
+                                                            *:ReplaceDebug*
+:ReplaceDebug {action}
+    Debug utilities for troubleshooting.
+
+    Actions:~
+        on        Enable verbose diagnostics (hex dumps, detailed errors)
+        off       Disable debug mode
+        status    Show current debug state
+        test      Run UTF-8 offset test suite
+        inspect   Inspect current buffer (encoding, line count, etc.)
+        analyze {line} {pattern}
+                  Analyze specific line for match issues
+
+    Examples:~
+        :ReplaceDebug on
+        :ReplaceDebug analyze 45 "Müller"
+        :ReplaceDebug test
+
+==============================================================================
+6. CONFIGURATION                                    *replacer-configuration*
+
+Default configuration: >lua
+    require("replacer").setup({
+      -- Picker backend
+      engine = "telescope",              -- "telescope" | "fzf"
+
+      -- Behavior
+      write_changes = true,              -- write buffers after replace
+      confirm_all = true,                -- ask before replacing all
+
+      -- Ripgrep options
+      hidden = true,                     -- include dotfiles
+      git_ignore = true,                 -- respect .gitignore
+      exclude_git_dir = true,            -- skip .git/ explicitly
+      literal = true,                    -- fixed-strings by default
+      smart_case = true,                 -- ripgrep -S
+
+      -- Preview
+      preview_context = 3,               -- context lines in preview
+
+      -- Picker-specific options
+      fzf = {},                          -- extra fzf-lua options
+      telescope = {},                    -- extra telescope options
+
+      -- Extended highlighting (Telescope only)
+      ext_highlight = true,
+      ext_highlight_strikethrough = true,
+      ext_highlight_opts = {
+        enabled = true,
+        debug = false,                   -- enable hex dumps
+        preview_marker = "▶ ",
+        old_bg = "#FF7A29",              -- orange background
+        old_fg = "#1e1e1e",              -- dark text
+        new_fg = "#9EE493",              -- green for new text
+        strikethrough = true,
+        virt_prefix = " ▶ ",
+        hl_priority = 50,
+      },
+    })
+<
+
+                                                   *replacer-config-engine*
+engine~
+    Type: string
+    Default: "telescope"
+    Values: "telescope" | "fzf"
+
+    Picker backend to use.
+
+                                             *replacer-config-write_changes*
+write_changes~
+    Type: boolean
+    Default: true
+
+    Automatically write modified buffers after applying replacements.
+    Set to false to review changes before saving.
+
+                                               *replacer-config-confirm_all*
+confirm_all~
+    Type: boolean
+    Default: true
+
+    Ask for confirmation before replacing all matches at once.
+
+                                                    *replacer-config-hidden*
+hidden~
+    Type: boolean
+    Default: true
+
+    Include hidden files (dotfiles) in search.
+
+                                                *replacer-config-git_ignore*
+git_ignore~
+    Type: boolean
+    Default: true
+
+    Respect .gitignore files.
+
+                                           *replacer-config-exclude_git_dir*
+exclude_git_dir~
+    Type: boolean
+    Default: true
+
+    Explicitly exclude .git/ directory.
+
+                                                   *replacer-config-literal*
+literal~
+    Type: boolean
+    Default: true
+
+    Use fixed-strings search (ripgrep --fixed-strings).
+    Set to false for regex mode.
+
+                                                *replacer-config-smart_case*
+smart_case~
+    Type: boolean
+    Default: true
+
+    Enable smart-case search (ripgrep -S).
+
+                                          *replacer-config-preview_context*
+preview_context~
+    Type: integer
+    Default: 3
+
+    Number of context lines shown around match in preview.
+
+                                        *replacer-config-ext_highlight_opts*
+ext_highlight_opts~
+    Type: table
+
+    Extended preview highlighting options (Telescope only).
+    See |replacer-highlighting| for details.
+
+==============================================================================
+7. PICKER MAPPINGS                                      *replacer-mappings*
+
+                                              *replacer-mappings-telescope*
+Telescope mappings:~
+    <CR>      Apply replacement to selected entry/entries
+    <Tab>     Toggle selection (multi-select mode)
+    <C-a>     Replace all matches at once (with confirmation)
+    r         Replace selected entry and reopen picker with remaining
+
+                                                  *replacer-mappings-fzf*
+fzf-lua mappings:~
+    <CR>      Apply replacement to selected entries
+    <Tab>     Toggle selection
+    <C-a>     Replace all matches at once (with confirmation)
+    r         Replace selected entry and reopen picker with remaining
+
+==============================================================================
+8. ADVANCED USAGE                                        *replacer-advanced*
+
+                                                    *replacer-utf8-handling*
+UTF-8 Multi-Byte Characters~
+
+Replacer correctly handles UTF-8 multi-byte characters (umlauts, emoji, etc.)
+by converting character offsets to byte offsets internally.
+
+Example with German umlauts: >vim
+    :Replace "Müller" "Mueller" %
+<
+
+If you encounter "skip changed spot" warnings, enable debug mode: >vim
+    :ReplaceDebug on
+    :Replace "Müller" "Mueller" %
+<
+
+This will show detailed byte-vs-character diagnostics.
+
+                                                       *replacer-debug-mode*
+Debug Mode~
+
+Enable verbose diagnostics: >vim
+    :ReplaceDebug on
+<
+
+This provides:
+• Hex dumps of mismatched text
+• Detailed byte offset information
+• UTF-8 character analysis
+• Skip reason statistics
+
+Inspect current buffer: >vim
+    :ReplaceDebug inspect
+<
+
+Analyze specific line: >vim
+    :ReplaceDebug analyze 45 "pattern"
+<
+
+Run test suite: >vim
+    :ReplaceDebug test
+<
+
+Disable debug mode: >vim
+    :ReplaceDebug off
+<
+
+                                                          *replacer-scopes*
+Scope Examples~
+
+Current buffer only: >vim
+    :Replace old new %
+<
+
+Current working directory: >vim
+    :Replace old new cwd
+    :Replace old new .
+<
+
+Specific directory: >vim
+    :Replace old new src/
+    :Replace old new /absolute/path/
+<
+
+Specific file: >vim
+    :Replace old new src/main.lua
+<
+
+                                                    *replacer-highlighting*
+Preview Highlighting (Telescope)~
+
+The preview window highlights:
+• Old match text: orange background with strikethrough (configurable)
+• New replacement text: green (immediately following old text)
+
+Customize colors: >lua
+    ext_highlight_opts = {
+      old_bg = "#FF7A29",  -- orange
+      old_fg = "#1e1e1e",  -- dark
+      new_fg = "#9EE493",  -- green
+      strikethrough = true,
+    }
+<
+
+                                                    *replacer-quoted-args*
+Quoted Arguments~
+
+Use quotes for patterns/replacements with spaces: >vim
+    :Replace "foo bar" "baz qux" %
+<
+
+Escape quotes inside quotes: >vim
+    :Replace "\"test\"" ok %
+    :Replace '"test"' ok %
+<
+
+Backslash escapes work outside quotes too: >vim
+    :Replace \"test\" ok %
+<
+
+==============================================================================
+9. TROUBLESHOOTING                                *replacer-troubleshooting*
+
+                                              *replacer-troubleshooting-utf8*
+Problem: "skip changed spot" for UTF-8 characters~
+
+Symptom: >
+    [replacer] skip (mismatch): file.lua:45:5
+<
+
+Solution:
+1. Enable debug mode: >vim
+    :ReplaceDebug on
+<
+2. Inspect buffer encoding: >vim
+    :set fileencoding?
+<
+   Should be "utf-8"
+3. Analyze problematic line: >vim
+    :ReplaceDebug analyze 45 "Müller"
+<
+4. If encoding is wrong: >vim
+    :set fileencoding=utf-8
+    :w
+<
+
+                                         *replacer-troubleshooting-no-matches*
+Problem: No matches found~
+
+Check if ripgrep finds matches: >bash
+    rg --json -n --column "pattern" file.lua
+<
+
+If ripgrep works but plugin doesn't:
+1. Check ripgrep version: >bash
+    rg --version  # min. 11.0
+<
+2. Enable debug mode: >vim
+    :ReplaceDebug on
+    :Replace "pattern" "new" %
+<
+
+                                    *replacer-troubleshooting-partial-matches*
+Problem: Only first match per line found~
+
+Solution: This is a ripgrep submatch issue. The plugin has a fallback
+that should handle this automatically. If it doesn't: >vim
+    :ReplaceDebug analyze <line> "<pattern>"
+<
+
+                                          *replacer-troubleshooting-not-saved*
+Problem: Changes not saved~
+
+Check configuration: >lua
+    write_changes = true  -- must be true for auto-save
+<
+
+Or manually save: >vim
+    :w
+<
+
+==============================================================================
+10. API                                                      *replacer-api*
+
+For plugin developers and advanced users.
+
+                                                         *replacer.setup()*
+replacer.setup({opts})
+    Configure the plugin.
+
+    Parameters:~
+        {opts}  Configuration table (see |replacer-configuration|)
+
+    Returns:~
+        nil
+
+                                                           *replacer.run()*
+replacer.run({old}, {new}, {scope}, {all})
+    Execute replace operation programmatically.
+
+    Parameters:~
+        {old}    Pattern to search (string)
+        {new}    Replacement text (string)
+        {scope}  Scope string (see |replacer-scopes|)
+        {all}    Non-interactive mode (boolean)
+
+    Returns:~
+        nil
+
+    Example: >lua
+        require("replacer").run("old", "new", "cwd", false)
+<
+
+                                                      *replacer.options*
+replacer.options
+    Table containing current configuration.
+
+    Example: >lua
+        local cfg = require("replacer").options
+        print(vim.inspect(cfg))
+<
+
+==============================================================================
+11. ABOUT                                                    *replacer-about*
+
+Project: https://github.com/StefanBartl/replacer.nvim
+Issues:  https://github.com/StefanBartl/replacer.nvim/issues
+License: MIT
+
+Maintainer: Stefan Bartl
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
