@@ -31,7 +31,7 @@
 ---@field virt_prefix string|nil     -- prefix string for virtual hint (default " → ")
 ---@field hl_priority? integer|nil
 ---@field preview_marker string|nil  -- marker for the preview line (default "▶ ")
----@field ani_old_bg string|nil      -- ANSI color code (or full sequence) for old (fzf fallback)
+---@field ansi_old_bg string|nil      -- ANSI color code (or full sequence) for old (fzf fallback)
 ---@field ansi_new_fg string|nil     -- ANSI color for new hint (fzf fallback)
 ---@field ansi_fallback boolean
 ---@field debug boolean|nil          -- enable debug notifications in preview code
