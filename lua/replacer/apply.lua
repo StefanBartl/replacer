@@ -1,5 +1,11 @@
 ---@module 'replacer.apply'
 --- Apply replacements to buffers bottom-up with enhanced validation and diagnostics.
+---
+--- Key improvements:
+--- 1. Normalize line text before comparison (consistent with rg.lua)
+--- 2. Better error reporting with hex dump of mismatches
+--- 3. Retry logic with trimmed comparison (handles trailing whitespace edge cases)
+--- 4. Track skip reasons for statistics
 
 --------------------------------------------------------------------------------
 -- Helpers
