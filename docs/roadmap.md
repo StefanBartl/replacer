@@ -1,28 +1,24 @@
-# Roadmap für 'Replacer'
+## Roadmap für 'Replacer'
 
-<<<<<<< Updated upstream
-1. mehrmalige vorkommen innerhalb einer Zeile mpssen kebenfalls replaced werden fc
+1. mehrmalige vorkommen innerhalb einer Zeile mpssen kebenfalls replaced werden bzw in die liste im picker aufgenommen werden als eigener eintrag
 2. literal und andere optionen ssollem auch im command mitgegeben werden können
-3. user config weiter ausbauen
-4. Nichtn ur rigrep, sondern auch vimgrep sollte verwendbar sein
-5. Comments lectures
-6. :h
-7. github repo detaillierter mit infos versorgen
-8.  check, ob fzf lua installiert ist, dann dies benutzen, oder nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
-9. errormessages besser schreiben die an user gehen, so wie "wrong number of arguments" ist nicht besonders ...
-=======
-- :h
-- github repo detaillierter mit infos versorgen
-- Range erlauben
+3. Comments lectures
+4. Nichtn nur rigrep, sondern auch vimgrep sollte verwendbar sein (in config setzten)
+    - vimgrep als (automatischer) fallback wenn ripgrep nicht installierbar ist
+5. check, ob fzf lua installiert ist, dann dies benutzen, oder nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
+6. Range erlauben für Usercommanmds && Mappings: `:< , >`
+7. errormessages besser schreiben die an user gehen zb.:
+    `"wrong number of arguments" `
+   wenn in der ARgumentliste bei den usercommands eteas nicht stimmt ist nicht besonders ...
+8. Erstellen einer Liste mit Vorschlägen um die user config weiter auszubauen
+9. Help Datei für die nvim hilfe `:h replacer *` erstellen: `/doc/replacer.txt`
 
 - Zusätzliche Funktion, die neben dem Source Code auch Änderungen von Dateinamen und Ordnern möglich macht
     - Eigener Picker nur mit Dateinamen/Ordnern
     - Gemeinsamen Picker, indem Source Code und Dateinamen (speziell highlighted) aufgelistet werden
-    - Änderung wird auf importe/exporte angewandt
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+    - Änderung wird auf importe/exporte angewandt: Wenn ein Dateiname geändert wird, werden alle möglichen import/export statements der Sprache in der man gerad eist erstellt, dann das gesamte cwd/projekt abgescht und upgedatet.
+
+- github repo detaillierter mit infos versorgen
 
 ## Features
 
