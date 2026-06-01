@@ -8,8 +8,9 @@
 
 Project-wide search-and-replace with ripgrep, an interactive picker (fzf-lua or Telescope), live preview, and precise application of changes.
 
----
+______________________________________________________________________
 
+<<<<<<< HEAD
 * [Features](#features)
 * [Roadmap](#roadmap)
 * [Usage](#usage)
@@ -23,19 +24,50 @@ Project-wide search-and-replace with ripgrep, an interactive picker (fzf-lua or 
 * [License](#license)
 * [Disclaimer](#disclaimer)
 * [Feedback](#feedback)
+=======
+- [Features](#features)
+- [Roadmap](#roadmap)
+- [Usage](#usage)
+  - [Command Syntax](#command-syntax)
+  - [Picker Keymaps](#picker-keymaps)
+- [Features](#features)
+- [Installation](#installation)
+  - [With Lazy.nvim](#with-lazynvim)
+- [Configuration](#configuration)
+- [Safety & Notes](#safety--notes)
+- [Development](#development)
+- [License](#license)
+- [Disclaimer](#license)
+- [Feedback](#Feedback)
+>>>>>>> feature
 
----
+______________________________________________________________________
 
 ## Usage
 
 ### Command Syntax
 
+**EBNF:**
+
+```ebnf
+ReplaceCmd  = ":Replace" [Bang] SP Params
+Bang        = "!"                                     ; non-interactive (apply to all targets in scope)
+Params      = [ModeFlag] Old SP New [SP Scope] [SP ConfirmFlag]
+ModeFlag    = "--literal" | "-L" | "--regex" | "-R"
+ConfirmFlag = "--confirm" | "--no-confirm"
+Old         = <string>                                ; quote when needed
+New         = <string>
+Scope       = "%" | "cwd" | "." | <path>              ; default = opts.default_scope
+SP          = <Space>
+```
+
 ```sh
 :Replace {old} {new} {scope?} {All?}
 ```
 
-Parameters:
+**Parameters:**
 
+<<<<<<< HEAD
 old       **required** literal (or regex if configured) text to search for
 new       **required** replacement text; empty string deletes matches
 scope     **optional:** one of:
@@ -46,6 +78,17 @@ scope     **optional:** one of:
 All       **optional:** token; when present, runs non-interactive “replace all” (no picker)
 
 Arguments can now include **quotes** or **escaped quotes**:
+=======
+old **required** literal (or regex if configured) text to search for
+new **required** replacement text; empty string deletes matches
+scope **optional:** one of:
+--> % current buffer (file-backed)
+--> cwd current working directory
+--> . alias for cwd <path> explicit file or directory
+All **optional:** token; when present, runs non-interactive “replace all” (no picker)
+
+Examples:
+>>>>>>> feature
 
 ```sh
 :Replace "foo bar" "baz qux" %
@@ -53,6 +96,7 @@ Arguments can now include **quotes** or **escaped quotes**:
 :Replace \"test\" \'test\' %
 ```
 
+<<<<<<< HEAD
 These examples demonstrate that:
 
 * Quoted tokens are parsed as single arguments.
@@ -60,13 +104,19 @@ These examples demonstrate that:
 * Literal quote characters can be searched and replaced.
 
 ---
+=======
+**After picker opened:**
+>>>>>>> feature
 
-### Picker Keymaps
+fzf-lua:
+\*Tab: toggle selection
 
-After picker opened:
+- Enter: apply to the currently selected entries
+- Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
 
-**fzf-lua:**
+Telescope:
 
+<<<<<<< HEAD
 * Enter: apply to the currently selected entries
 * Tab: toggle selection
 * Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
@@ -95,11 +145,30 @@ After picker opened:
 * Strong EmmyLua annotations and type hints for LuaLS
 * Clean, modular code layout (search, apply, pickers, command, config)
 * Supports escaped quotes and backslashes in command arguments
+=======
+- Enter: apply to the highlighted entry
+- Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
 
----
+______________________________________________________________________
+
+## Features
+
+- Project-wide search using ripgrep `--json` for precise match coordinates
+- Interactive selection via either `fzf-lua` or `telescope.nvim`
+- Live context preview around each match
+- Replace only the selected occurrences; or replace all at once
+- Bottom-up in-buffer edits to avoid offset shift bugs
+- Optional write-to-disk on apply (or keep changes unsaved)
+- Literal mode by default; Regex mode opt-in
+- Strong EmmyLua annotations and type hints for LuaLS
+- Clean, modular code layout (search, apply, pickers, command, config)
+>>>>>>> feature
+
+______________________________________________________________________
 
 ## Roadmap
 
+<<<<<<< HEAD
 * [x] Non-interactive “All” mode via `:Replace ... All`
 * [x] Backend switch: `engine = "fzf"` or `"telescope"`
 * [x] Confirm-all guard and write/no-write switch
@@ -126,6 +195,47 @@ After picker opened:
 
 ### With Lazy.nvim
 
+=======
+- [x] Non-interactive “All” mode via `:Replace ... All`
+- [x] Backend switch: `engine = "fzf"` or `"telescope"`
+- [x] Confirm-all guard and write/no-write switch
+- [x] Per-match preview and robust bottom-up edits
+- [ ] Optional diff-style preview (before/after)
+- [ ] Regex escape helpers (when literal=false)
+- [ ] Built-in help `:help replacer`
+
+______________________________________________________________________
+
+______________________________________________________________________
+
+## Installation
+
+**Requirements;**
+
+- Neovim 0.9 or newer
+- ripgrep (`rg`) in `PATH`
+- One picker:
+  - `ibhagwan/fzf-lua`, or
+  - `nvim-telescope/telescope.nvim` (+ `nvim-lua/plenary.nvim`)
+
+### With Lazy.nvim
+
+**Minmal:**
+
+```lua
+{
+  "StefanBartl/replacer",
+  name = "replacer.nvim",
+  main = "replacer",
+  opts = {
+    engine = "fzf",            -- "fzf" | "telescope"
+  },
+}
+```
+
+**With configuration:**
+
+>>>>>>> feature
 ```lua
 {
   "StefanBartl/replacer",
@@ -140,6 +250,10 @@ After picker opened:
     exclude_git_dir = true,    -- skip .git/ explicitly
     literal = true,            -- fixed-strings by default
     smart_case = true,         -- ripgrep -S
+
+    default_scope = "%",          -- "%", "cwd", ".", or <path>
+    confirm_wide_scope = false,   -- ask once for permission if scope ≠ "%"
+
     fzf = {                    -- extra fzf-lua options (optional)
       winopts = { width = 0.85, height = 0.70 },
     },
@@ -150,7 +264,7 @@ After picker opened:
 }
 ```
 
----
+______________________________________________________________________
 
 ## Configuration
 
@@ -158,6 +272,7 @@ After picker opened:
 
 | Option          | Type    | Description                                                    |
 | --------------- | ------- | -------------------------------------------------------------- |
+<<<<<<< HEAD
 | engine          | string  | Picker backend: `"fzf"` / `"telescope"`                        |
 | write_changes   | boolean | Write modified buffers on apply (true) or keep unsaved (false) |
 | confirm_all     | boolean | Ask confirmation before replacing all matches at once          |
@@ -165,31 +280,42 @@ After picker opened:
 | preview_marker  | string  | Custom marker/prefix in preview highlighting                   |
 | hidden          | boolean | Include dotfiles (`--hidden`)                                  |
 | git_ignore      | boolean | Respect `.gitignore` (false → `--no-ignore`)                   |
+=======
+| engine          | string  | Picker backend: "fzf" / "telescope"                            |
+| write_changes   | boolean | Write modified buffers on apply (true) or keep unsaved (false) |
+| confirm_all     | boolean | Ask confirmation before replacing all matches at once          |
+| preview_context | integer | Context lines shown in preview around the hit                  |
+| hidden          | boolean | Include dotfiles (`--hidden`)                                  |
+| git_ignore      | boolean | Respect .gitignore (false → `--no-ignore`)                     |
+>>>>>>> feature
 | exclude_git_dir | boolean | Exclude `.git` directory explicitly (`--glob !.git`)           |
 | literal         | boolean | Literal search (`--fixed-strings`); set false for regex mode   |
 | smart_case      | boolean | Smart-case (`-S`)                                              |
 | fzf             | table?  | Extra options for `fzf-lua` (merged into picker opts)          |
 | telescope       | table?  | Extra options for Telescope picker (theme/layout)              |
 
-Minimal:
-
-```lua
-require("replacer").setup({})
-```
-
-Full example:
+**Full example:**
 
 ```lua
 require("replacer").setup({
+<<<<<<< HEAD
   engine = "telescope",
   write_changes = false,
   confirm_all = true,
+=======
+  engine = "fzf",            -- or "telescope"
+  default_scope = "%",
+  write_changes = true,
+  confirm_all = true,        -- affects <C-a> and :Replace!
+  confirm_wide_scope = false,
+  preview_context = 3,
+>>>>>>> feature
   hidden = true,
-  git_ignore = true,
   exclude_git_dir = true,
   literal = true,
   smart_case = true,
-  telescope = { layout_config = { width = 0.9, height = 0.8 } },
+  fzf = { winopts = { width = 0.85, height = 0.70 } },
+  telescope = { layout_config = { width = 0.85, height = 0.70 } },
 })
 ```
 
@@ -197,16 +323,17 @@ require("replacer").setup({
 
 ## Safety & Notes
 
-* Edits are applied bottom-up per file to avoid index shift issues.
-* Each occurrence is verified against the original text before editing; mismatches are skipped and reported.
-* When `write_changes = false`, buffers stay modified—review and `:write` manually or use VCS hunk staging.
-* Literal mode is the default; for regex, set `literal = false` and provide proper patterns.
-* ripgrep must be installed and discoverable via `PATH`.
+- Edits are applied bottom-up per file to avoid index shift issues.
+- Each occurrence is verified against the original text before editing; mismatches are skipped and reported.
+- When `write_changes = false`, buffers stay modified—review and `:write` manually or use VCS hunk staging.
+- Literal mode is the default; for regex, set `literal = false` and provide proper patterns.
+- ripgrep must be installed and discoverable via `PATH`.
 
----
+______________________________________________________________________
 
 ## Development
 
+<<<<<<< HEAD
 * Repository layout follows standard `lua/<plugin_name>/...` convention for Lazy.nvim.
 * Type hints use EmmyLua; LuaLS-friendly stubs are provided where helpful.
 * Local hacking via `dir = "/path/to/replacer"`.
@@ -215,21 +342,31 @@ require("replacer").setup({
   * In picker, inspect preview; Tab to select specific hits; Enter to apply
   * Ctrl-A to replace all with confirmation
   * Set `write_changes=false` to review changes before writing
+=======
+- Repository layout follows standard `lua/<plugin_name>/...` convention for Lazy.nvim.
+- Type hints use EmmyLua; LuaLS-friendly stubs are provided where helpful.
+- To hack locally, add your repo via `dir = "/path/to/replacer"`.
+- Typical debug flow:
+  - `:Replace foo bar cwd`
+  - In picker, inspect preview; Tab to select specific hits; Enter to apply
+  - Ctrl-A to replace all with confirmation
+  - Set `write_changes=false` to review changes before writing
+>>>>>>> feature
 
----
+______________________________________________________________________
 
 ## License
 
 [MIT](./License)
 
----
+______________________________________________________________________
 
 ## Disclaimer
 
 ℹ️ This plugin is under active development – some features are planned or experimental.
 Expect changes in upcoming releases.
 
----
+______________________________________________________________________
 
 ## Feedback
 
@@ -237,13 +374,20 @@ Your feedback is very welcome!
 
 Please use the [GitHub issue tracker](https://github.com/StefanBartl/replacer/issues) to:
 
+<<<<<<< HEAD
 * Report bugs
 * Suggest new features
 * Ask questions about usage
 * Share thoughts on UI or functionality
+=======
+- Report bugs
+- Suggest new features
+- Ask questions about usage
+- Share thoughts on UI or functionality
+>>>>>>> feature
 
 For general discussion, feel free to open a [GitHub Discussion](https://github.com/StefanBartl/replacer/discussions).
 
 If you find this plugin helpful, consider giving it a ⭐ on GitHub — it helps others discover the project.
 
----
+______________________________________________________________________
