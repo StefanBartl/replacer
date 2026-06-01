@@ -17,6 +17,7 @@
     - Eigener Picker nur mit Dateinamen/Ordnern
     - Gemeinsamen Picker, indem Source Code und Dateinamen (speziell highlighted) aufgelistet werden
     - Änderung wird auf importe/exporte angewandt: Wenn ein Dateiname geändert wird, werden alle möglichen import/export statements der Sprache in der man gerad eist erstellt, dann das gesamte cwd/projekt abgescht und upgedatet.
+    - Änderung wird auf importe/exporte angewandt
 
 - github repo detaillierter mit infos versorgen
 
