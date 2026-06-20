@@ -35,11 +35,6 @@ local uv = vim.uv or vim.loop
 ---@param s string
 ---@return string[] tokens
 local function parse_args(s)
-<<<<<<< HEAD
-  local out = {} ---@type string[]
-  if not s or s == "" then return out end
-
-=======
   -- Normalize: accept nil, non-string, or empty gracefully
   if s == nil then return {} end
   if type(s) ~= "string" then
@@ -55,7 +50,6 @@ local function parse_args(s)
   if s == "" then return {} end
 
   local out = {} ---@type string[]
->>>>>>> feature
   local i, n = 1, #s
   while i <= n do
     -- skip whitespace
@@ -167,14 +161,9 @@ local M = {}
 ---@return nil
 function M.register(run_fun)
   local function handler(opts)
-<<<<<<< HEAD
-    -- parse raw args string so quotes/spaces are preserved
-    local args = parse_args(opts.args or "")
-=======
     -- opts.args is a raw string when nargs="*"; normalize defensively
     local raw = (type(opts.args) == "string") and opts.args or ""
     local args = parse_args(raw)
->>>>>>> feature
     if #args < 2 then
       vim.notify("Usage: :Replace {old} {new} {scope?} {All?}", vim.log.levels.ERROR)
       return
