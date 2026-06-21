@@ -31,43 +31,50 @@ ______________________________________________________________________
 
 ### Command Syntax
 
-**EBNF:**
-
-```ebnf
-ReplaceCmd  = ":Replace" [Bang] SP Params
-Bang        = "!"                                     ; non-interactive (apply to all targets in scope)
-Params      = [ModeFlag] Old SP New [SP Scope] [SP ConfirmFlag]
-ModeFlag    = "--literal" | "-L" | "--regex" | "-R"
-ConfirmFlag = "--confirm" | "--no-confirm"
-Old         = <string>                                ; quote when needed
-New         = <string>
-Scope       = "%" | "cwd" | "." | <path>              ; default = opts.default_scope
-SP          = <Space>
-```
-
 ```sh
-:Replace {old} {new} {scope?} {All?}
+:[range]Replace[!] {old} {new} [scope] [--flags]
 ```
 
 **Parameters:**
 
-old **required** literal (or regex if configured) text to search for
-new **required** replacement text; empty string deletes matches
-scope **optional:** one of:
---> % current buffer (file-backed)
---> cwd current working directory
---> . alias for cwd <path> explicit file or directory
-All **optional:** token; when present, runs non-interactive “replace all” (no picker)
+- `old` **required** — literal (or regex with `--regex`) text to search for
+- `new` **required** — replacement text; empty string `""` deletes matches
+- `scope` **optional** — `%` (current buffer) · `cwd` / `.` (working dir) · `<path>` (file/dir). Default: `default_scope` (`%`)
+- `[range]` **optional** — e.g. `:'<,'>Replace` restricts matching to the selected lines
+- `!` **optional** — bang is shorthand for `--all` (non-interactive)
+
+Each occurrence on a line becomes its own selectable entry (multiple hits per line are all handled).
+
+**Flags** (anywhere; a lone `--` stops flag parsing):
+
+| Flag | Effect |
+| ---- | ------ |
+| `--literal` / `--no-literal` / `--regex` | toggle literal vs regex search |
+| `--smart-case` / `--no-smart-case` | toggle ripgrep smart-case |
+| `--hidden` / `--no-hidden` | include/exclude dotfiles |
+| `--ignore` / `--no-ignore` | respect/ignore `.gitignore` |
+| `--type=<ft>` *(repeatable)* | restrict to a filetype (ripgrep `--type`) |
+| `--glob=<pat>` *(repeatable)* | include glob pattern |
+| `--exclude=<pat>` *(repeatable)* | exclude path/glob pattern |
+| `--engine=<fzf\|telescope>` | override picker for this run |
+| `--context=<n>` | preview context lines |
+| `--all` | non-interactive: apply to every match |
+| `--dry` | plan only: show stats + diff, no writes |
+| `--export=<path>` | write the planned diff (or `.json`) to a file (implies `--dry`) |
 
 Examples:
 
 ```sh
-:Replace foo bar                             # opens picker to select replacing targets in cwd
-:Replace foo bar %                           # opens picker to select replacing targets in current file
-:Replace foo bar cwd                         # opens picker to select replacing targets in cwd
-:Replace "very old" "brand new" ./src        # opens picker to select replacing targets in ./src
-:Replace foo "" %                            # opens picker to select matches to deletion in current file
-:Replace foo bar cwd All                     # apply replacements without opening the picker
+:Replace foo bar                             # picker over cwd
+:Replace foo bar %                           # picker over current file
+:Replace "very old" "brand new" ./src        # picker over ./src
+:Replace foo "" %                            # delete matches in current file
+:Replace foo bar cwd --all                   # apply to all, no picker
+:Replace TODO DONE cwd --type=lua --exclude=node_modules
+:'<,'>Replace foo bar                        # only within the visual selection
+:Replace foo bar cwd --dry                   # preview diff + stats, no writes
+:Replace foo bar cwd --export=changes.patch  # write a git-applyable patch
+:Replace foo bar cwd --export=plan.json      # write a JSON change plan
 ```
 
 **After picker opened:**
@@ -88,14 +95,19 @@ ______________________________________________________________________
 ## Features
 
 - Project-wide search using ripgrep `--json` for precise match coordinates
-- Interactive selection via either `fzf-lua` or `telescope.nvim`
+- **Native `vimgrep` fallback** when ripgrep is not installed (no external dep)
+- Interactive selection via `fzf-lua` or `telescope.nvim`, **auto-detected** (`engine = "auto"`)
+- Every occurrence per line is a separate, selectable entry
 - Live context preview around each match
 - Replace only the selected occurrences; or replace all at once
-- Bottom-up in-buffer edits to avoid offset shift bugs
+- **Dry-run** (`--dry`) with a stats summary and a diff preview — no writes
+- **Export** the planned change as a git-applyable `.patch` or `.json` (`--export=`)
+- Per-run **flags** (`--regex`, `--type=`, `--glob=`, `--exclude=`, …) and config defaults
+- **Range** support: `:'<,'>Replace` limits to the selected lines
+- Guarded, bottom-up in-buffer edits to avoid offset shift bugs
 - Optional write-to-disk on apply (or keep changes unsaved)
-- Literal mode by default; Regex mode opt-in
 - Strong EmmyLua annotations and type hints for LuaLS
-- Clean, modular code layout (search, apply, pickers, command, config)
+- Clean, modular code layout (search, apply, export, pickers, command, config)
 
 ______________________________________________________________________
 
@@ -118,7 +130,7 @@ ______________________________________________________________________
 **Requirements;**
 
 - Neovim 0.9 or newer
-- ripgrep (`rg`) in `PATH`
+- ripgrep (`rg`) in `PATH` — *recommended*; without it the native `vimgrep` backend is used automatically
 - One picker:
   - `ibhagwan/fzf-lua`, or
   - `nvim-telescope/telescope.nvim` (+ `nvim-lua/plenary.nvim`)
@@ -133,7 +145,7 @@ ______________________________________________________________________
   name = "replacer.nvim",
   main = "replacer",
   opts = {
-    engine = "fzf",            -- "fzf" | "telescope"
+    engine = "auto",           -- "auto" | "fzf" | "telescope"
   },
 }
 ```
@@ -146,7 +158,8 @@ ______________________________________________________________________
   name = "replacer.nvim",
   main = "replacer",
   opts = {
-    engine = "fzf",            -- "fzf" | "telescope"
+    engine = "auto",           -- picker: "auto" | "fzf" | "telescope"
+    search_engine = "auto",    -- backend: "auto" | "ripgrep" | "vimgrep"
     write_changes = true,      -- write buffers after replace
     confirm_all = true,        -- ask before replacing all
     preview_context = 3,       -- lines of context in preview
@@ -158,6 +171,10 @@ ______________________________________________________________________
 
     default_scope = "%",          -- "%", "cwd", ".", or <path>
     confirm_wide_scope = false,   -- ask once for permission if scope ≠ "%"
+
+    file_types = {},              -- default ripgrep --type filters, e.g. { "lua" }
+    globs = {},                   -- default include globs, e.g. { "*.lua" }
+    exclude = {},                 -- default exclude patterns, e.g. { "node_modules" }
 
     fzf = {                    -- extra fzf-lua options (optional)
       winopts = { width = 0.85, height = 0.70 },
@@ -177,15 +194,21 @@ ______________________________________________________________________
 
 | Option          | Type    | Description                                                    |
 | --------------- | ------- | -------------------------------------------------------------- |
-| engine          | string  | Picker backend: "fzf" / "telescope"                            |
+| engine          | string  | Picker UI: "auto" / "fzf" / "telescope" ("auto" → fzf-lua if present, else telescope) |
+| search_engine   | string  | Match backend: "auto" / "ripgrep" / "vimgrep" ("auto" → ripgrep if present, else vimgrep) |
 | write_changes   | boolean | Write modified buffers on apply (true) or keep unsaved (false) |
 | confirm_all     | boolean | Ask confirmation before replacing all matches at once          |
+| confirm_wide_scope | boolean | Extra confirmation for non-buffer (cwd/dir) ALL applies      |
 | preview_context | integer | Context lines shown in preview around the hit                  |
 | hidden          | boolean | Include dotfiles (`--hidden`)                                  |
 | git_ignore      | boolean | Respect .gitignore (false → `--no-ignore`)                     |
 | exclude_git_dir | boolean | Exclude `.git` directory explicitly (`--glob !.git`)           |
 | literal         | boolean | Literal search (`--fixed-strings`); set false for regex mode   |
 | smart_case      | boolean | Smart-case (`-S`)                                              |
+| default_scope   | string  | Scope used when none is given (`%`, `cwd`, `.`, or `<path>`)    |
+| file_types      | string[] | Default filetype filters (ripgrep `--type`)                   |
+| globs           | string[] | Default include glob patterns                                 |
+| exclude         | string[] | Default exclude path/glob patterns                            |
 | fzf             | table?  | Extra options for `fzf-lua` (merged into picker opts)          |
 | telescope       | table?  | Extra options for Telescope picker (theme/layout)              |
 
@@ -193,7 +216,8 @@ ______________________________________________________________________
 
 ```lua
 require("replacer").setup({
-  engine = "fzf",            -- or "telescope"
+  engine = "auto",           -- "auto" | "fzf" | "telescope"
+  search_engine = "auto",    -- "auto" | "ripgrep" | "vimgrep"
   default_scope = "%",
   write_changes = true,
   confirm_all = true,        -- affects <C-a> and :Replace!
@@ -203,6 +227,9 @@ require("replacer").setup({
   exclude_git_dir = true,
   literal = true,
   smart_case = true,
+  file_types = {},           -- e.g. { "lua" }
+  globs = {},                -- e.g. { "*.lua" }
+  exclude = {},              -- e.g. { "node_modules" }
   fzf = { winopts = { width = 0.85, height = 0.70 } },
   telescope = { layout_config = { width = 0.85, height = 0.70 } },
 })
@@ -210,11 +237,12 @@ require("replacer").setup({
 
 ## Safety & Notes
 
-- Edits are applied bottom-up per file to avoid index shift issues.
+- Use `--dry` (or `--export=`) first to review the exact diff before touching any file.
+- Edits are applied bottom-up per file, each guarded with `pcall`, to avoid index shift and partial-failure issues.
 - Each occurrence is verified against the original text before editing; mismatches are skipped and reported.
 - When `write_changes = false`, buffers stay modified—review and `:write` manually or use VCS hunk staging.
-- Literal mode is the default; for regex, set `literal = false` and provide proper patterns.
-- ripgrep must be installed and discoverable via `PATH`.
+- Literal mode is the default; for regex, use `--regex` (or set `literal = false`).
+- ripgrep is recommended; if it is not on `PATH`, the native `vimgrep` backend is used automatically (no `.gitignore`/rich `--type` support in that mode).
 
 ______________________________________________________________________
 

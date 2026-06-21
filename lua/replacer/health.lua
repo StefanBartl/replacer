@@ -61,13 +61,12 @@ local function check_ripgrep(health)
   health.start("ripgrep")
 
   if not cmd_exists("rg") then
-    health.error(
-      "ripgrep (rg) not found in PATH",
+    health.warn(
+      "ripgrep (rg) not found in PATH — using the native vimgrep backend",
       {
+        "ripgrep is faster and honors .gitignore/--type; vimgrep works without it.",
         "Install ripgrep: https://github.com/BurntSushi/ripgrep#installation",
-        "On macOS: brew install ripgrep",
-        "On Ubuntu: apt install ripgrep",
-        "On Windows: choco install ripgrep"
+        "On macOS: brew install ripgrep · Ubuntu: apt install ripgrep · Windows: choco install ripgrep",
       }
     )
     return
@@ -159,31 +158,28 @@ end
 local function check_config(health)
   health.start("Configuration")
 
-  local ok, replacer = pcall(require, "replacer")
+  local ok, cfg_mod = pcall(require, "replacer.config")
   if not ok then
-    health.error("replacer module not loaded", { "Check plugin installation" })
+    health.error("replacer.config not loaded", { "Check plugin installation" })
     return
   end
 
-  if not replacer.options then
-    health.warn("Plugin not configured", { "Run require('replacer').setup({})" })
-    return
-  end
+  local cfg = cfg_mod.get()
 
-  local cfg = replacer.options
-
-  -- Check engine
-  if cfg.engine == "telescope" or cfg.engine == "fzf" then
-    health.ok(string.format("Engine: %s", cfg.engine))
-
-    -- Verify picker is available
-    local picker_ok = false
-    if cfg.engine == "telescope" then
-      picker_ok = pcall(require, "telescope")
-    else
-      picker_ok = pcall(require, "fzf-lua")
+  -- Picker engine ("auto" resolves to fzf-lua, else telescope)
+  if cfg.engine == "auto" then
+    local resolved = pcall(require, "fzf-lua") and "fzf-lua"
+      or (pcall(require, "telescope") and "telescope")
+      or "none"
+    health.ok(string.format("Picker engine: auto (resolves to %s)", resolved))
+    if resolved == "none" then
+      health.error("No picker available for engine='auto'",
+        { "Install fzf-lua or telescope.nvim" })
     end
-
+  elseif cfg.engine == "telescope" or cfg.engine == "fzf" then
+    health.ok(string.format("Picker engine: %s", cfg.engine))
+    local picker_ok = (cfg.engine == "telescope") and pcall(require, "telescope")
+      or pcall(require, "fzf-lua")
     if not picker_ok then
       health.error(
         string.format("Configured engine '%s' not available", cfg.engine),
@@ -191,24 +187,23 @@ local function check_config(health)
       )
     end
   else
-    health.warn(
-      string.format("Unknown engine: %s (expected 'telescope' or 'fzf')", cfg.engine or "nil"),
-      { "Plugin will default to telescope if available" }
-    )
+    health.warn(string.format("Unknown engine: %s", tostring(cfg.engine)),
+      { "Expected 'auto', 'fzf', or 'telescope'" })
   end
 
-  -- Check write_changes
+  -- Search backend ("auto" prefers ripgrep, falls back to vimgrep)
+  health.info(string.format("Search backend: %s", tostring(cfg.search_engine)))
+
   health.info(string.format("write_changes: %s", tostring(cfg.write_changes)))
-
-  -- Check confirm_all
   health.info(string.format("confirm_all: %s", tostring(cfg.confirm_all)))
-
-  -- Check literal mode
   health.info(string.format("literal mode: %s", tostring(cfg.literal)))
 
-  -- Check debug mode
-  if cfg.ext_highlight_opts and cfg.ext_highlight_opts.debug then
-    health.warn("Debug mode is enabled", { "Disable for production: ext_highlight_opts.debug = false" })
+  local filters = {}
+  if #(cfg.file_types or {}) > 0 then filters[#filters + 1] = "types=" .. table.concat(cfg.file_types, ",") end
+  if #(cfg.globs or {}) > 0 then filters[#filters + 1] = "globs=" .. table.concat(cfg.globs, ",") end
+  if #(cfg.exclude or {}) > 0 then filters[#filters + 1] = "exclude=" .. table.concat(cfg.exclude, ",") end
+  if #filters > 0 then
+    health.info("Default filters: " .. table.concat(filters, "  "))
   end
 end
 
@@ -251,7 +246,7 @@ function M.check()
 
   -- Summary
   health.start("Summary")
-  health.info("Run :ReplaceDebug test to verify UTF-8 offset handling")
+  health.info("Usage: :[range]Replace[!] {old} {new} [scope] [--flags]")
   health.info("See :help replacer for documentation")
 end
 
