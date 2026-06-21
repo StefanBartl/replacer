@@ -1,16 +1,15 @@
 # Roadmap für 'Replacer'
 
+- `.github` für github actions erstellen
 - Window soll mit escape egschlossen werden können
-
-
-1. mehrmalige vorkommen innerhalb einer Zeile mpssen kebenfalls replaced werden bzw in die liste im picker aufgenommen werden als eigener eintrag
-2. literal und andere optionen ssollem auch im command mitgegeben werden können
-3. Comments lectures
-4. Nichtn nur rigrep, sondern auch vimgrep sollte verwendbar sein (in config setzten)
+- mehrmalige vorkommen innerhalb einer Zeile mpssen kebenfalls replaced werden bzw in die liste im picker aufgenommen werden als eigener eintrag
+- literal und andere optionen ssollem auch im command mitgegeben werden können
+- Comments lectures
+- Nichtn nur rigrep, sondern auch vimgrep sollte verwendbar sein (in config setzten)
     - vimgrep als (automatischer) fallback wenn ripgrep nicht installierbar ist
-5. check, ob fzf lua installiert ist, dann dies benutzen, wenn nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
-6. Range erlauben für Usercommanmds: `:< , >`
-7. errormessages besser schreiben die an user gehen zb.:
+- check, ob fzf lua installiert ist, dann dies benutzen, wenn nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
+- Range erlauben für Usercommanmds: `:< , >`
+- errormessages besser schreiben die an user gehen zb.:
     `"wrong number of arguments" `
    wenn in der ARgumentliste bei den usercommands eteas nicht stimmt sollte möglischt korrekt erklärt werden was...
 

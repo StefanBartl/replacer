@@ -111,6 +111,22 @@ local function run(old, items, new_text, cfg, apply_func)
     opts.winopts.preview.hidden = false
   end
 
+  -- Double-escape: fzf runs in a terminal, so the analog of "normal mode" is
+  -- terminal-normal mode. 1st <Esc> leaves terminal-insert (<C-\><C-n>);
+  -- 2nd <Esc> (now in normal mode) closes the picker window.
+  do
+    local prev_on_create = opts.winopts.on_create
+    opts.winopts.on_create = function(...)
+      if type(prev_on_create) == "function" then pcall(prev_on_create, ...) end
+      local buf = vim.api.nvim_get_current_buf()
+      pcall(vim.keymap.set, "t", "<Esc>", [[<C-\><C-n>]],
+        { buffer = buf, nowait = true, silent = true })
+      pcall(vim.keymap.set, "n", "<Esc>", function()
+        pcall(vim.api.nvim_win_close, vim.api.nvim_get_current_win(), true)
+      end, { buffer = buf, nowait = true, silent = true })
+    end
+  end
+
   -- Wire official previewer + grep hints (full-span highlight)
   if ctor and grep_fn and last_query ~= "" then
     opts.previewer   = { _ctor = ctor }

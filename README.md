@@ -80,15 +80,18 @@ Examples:
 **After picker opened:**
 
 fzf-lua:
-\*Tab: toggle selection
 
+- Tab: toggle selection
 - Enter: apply to the currently selected entries
 - Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
+- Esc: first press leaves terminal-insert (normal mode), second press closes
 
 Telescope:
 
+- Tab: toggle selection
 - Enter: apply to the highlighted entry
 - Ctrl-A: replace all matches at once (confirmation depends on `confirm_all`)
+- Esc: first press switches to normal mode, second press closes
 
 ______________________________________________________________________
 

@@ -286,6 +286,7 @@ Telescope mappings:~
     <Tab>     Toggle selection (multi-select mode)
     <C-a>     Replace all matches at once (with confirmation)
     r         Replace selected entry and reopen picker with remaining
+    <Esc>     1st: switch to normal mode · 2nd (in normal mode): close
 
                                                   *replacer-mappings-fzf*
 fzf-lua mappings:~
@@ -293,6 +294,7 @@ fzf-lua mappings:~
     <Tab>     Toggle selection
     <C-a>     Replace all matches at once (with confirmation)
     r         Replace selected entry and reopen picker with remaining
+    <Esc>     1st: leave terminal-insert (normal mode) · 2nd: close
 
 ==============================================================================
 8. ADVANCED USAGE                                        *replacer-advanced*
