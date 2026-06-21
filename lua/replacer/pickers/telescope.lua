@@ -151,6 +151,11 @@ local function run(items, new_text, cfg, apply_func)
       end
       map("i", "<C-a>", do_all); map("n", "<C-a>", do_all)
 
+      -- Double-escape: 1st <Esc> leaves insert -> Telescope normal mode,
+      -- 2nd <Esc> (normal mode) closes the picker.
+      map("i", "<Esc>", function() vim.cmd("stopinsert") end)
+      map("n", "<Esc>", actions.close)
+
       return true
     end,
   })
