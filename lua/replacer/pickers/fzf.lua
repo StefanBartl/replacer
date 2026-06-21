@@ -43,8 +43,13 @@ local function run(old, items, new_text, cfg, apply_func)
     end
   end
 
-  -- Grep provider + last_query so previewer can highlight full span
-  local grep_fn; pcall(function() grep_fn = require("fzf-lua.providers.grep").grep end)
+  -- Grep provider + last_query so previewer can highlight full span.
+  -- OPTIONAL enhancement: if the provider is unavailable the picker still works,
+  -- only the full-span preview highlight is skipped. Hence the failure is ignored
+  -- on purpose (not a swallowed error).
+  local grep_fn
+  local ok_grep = pcall(function() grep_fn = require("fzf-lua.providers.grep").grep end)
+  if not ok_grep then grep_fn = nil end
   local ok_utils, utils = pcall(require, "fzf-lua.utils")
   if ok_utils and utils and (cfg.literal ~= false) then
     last_query = utils.rg_escape(last_query)

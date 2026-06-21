@@ -5,15 +5,13 @@
 3. Comments lectures
 4. Nichtn nur rigrep, sondern auch vimgrep sollte verwendbar sein (in config setzten)
     - vimgrep als (automatischer) fallback wenn ripgrep nicht installierbar ist
-5. check, ob fzf lua installiert ist, dann dies benutzen, oder nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
-6. Range erlauben für Usercommanmds && Mappings: `:< , >`
+5. check, ob fzf lua installiert ist, dann dies benutzen, wenn nur telescope, dann dies benuzen, wenn beide, dann fzf-lua
+6. Range erlauben für Usercommanmds: `:< , >`
 7. errormessages besser schreiben die an user gehen zb.:
     `"wrong number of arguments" `
-   wenn in der ARgumentliste bei den usercommands eteas nicht stimmt ist nicht besonders ...
-8. Erstellen einer Liste mit Vorschlägen um die user config weiter auszubauen
-9. Help Datei für die nvim hilfe `:h replacer *` erstellen: `/doc/replacer.txt`
+   wenn in der ARgumentliste bei den usercommands eteas nicht stimmt sollte möglischt korrekt erklärt werden was...
 
-- Zusätzliche Funktion, die neben dem Source Code auch Änderungen von Dateinamen und Ordnern möglich macht
+- Zusätzliche Funktion, die neben dem Source Code auch Änderungen von Dateinamen und Ordnern möglich macht, :ReplaceFNames oder so.
     - Eigener Picker nur mit Dateinamen/Ordnern
     - Gemeinsamen Picker, indem Source Code und Dateinamen (speziell highlighted) aufgelistet werden
     - Änderung wird auf importe/exporte angewandt: Wenn ein Dateiname geändert wird, werden alle möglichen import/export statements der Sprache in der man gerad eist erstellt, dann das gesamte cwd/projekt abgescht und upgedatet.
