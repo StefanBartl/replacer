@@ -168,34 +168,13 @@ end
 
 local USAGE = "Usage: :[range]Replace[!] {old} {new} [scope] [--flags]   (:h replacer-commands)"
 
---------------------------------------------------------------------------------
--- Request parser
---------------------------------------------------------------------------------
-
---- Parse a raw argument string (plus command opts) into a structured request.
---- Pure and side-effect free → unit-testable.
----@param raw string|nil          # opts.args
----@param cmd_opts table|nil      # { bang?:boolean, range?:integer, line1?:integer, line2?:integer }
----@return boolean ok
----@return RP_Request|nil request
----@return string|nil err          # human-readable error when ok=false
-function M.parse_request(raw, cmd_opts)
-  cmd_opts = cmd_opts or {}
-  local tokens = parse_args(raw)
-
-  ---@type RP_Request
-  local req = {
-    old = "",
-    new = "",
-    scope = "",
-    all = cmd_opts.bang and true or false,
-    dry = false,
-    export = nil,
-    line_range = nil,
-    overrides = {},
-    filters = { file_types = {}, globs = {}, exclude = {} },
-  }
-
+--- Consume `tokens`, applying flags to `req` and collecting positionals.
+--- Shared by :Replace and :Surround so both honor the exact same flag grammar.
+---@param tokens string[]
+---@param req RP_Request
+---@return string[]|nil positionals   # nil on error
+---@return string|nil err
+local function apply_tokens(tokens, req)
   local positionals = {} ---@type string[]
   local flags_done = false
 
@@ -226,15 +205,51 @@ function M.parse_request(raw, cmd_opts)
           end
         end
         local err = apply_value_flag(req, key, val)
-        if err then return false, nil, "Replace: " .. err end
+        if err then return nil, "Replace: " .. err end
       else
-        return false, nil, string.format(
+        return nil, string.format(
           "Replace: unknown option '%s'. See :h replacer-commands for valid flags.", t)
       end
     else
       positionals[#positionals + 1] = t
     end
     k = k + 1
+  end
+
+  return positionals
+end
+
+--------------------------------------------------------------------------------
+-- Request parser
+--------------------------------------------------------------------------------
+
+--- Parse a raw argument string (plus command opts) into a structured request.
+--- Pure and side-effect free → unit-testable.
+---@param raw string|nil          # opts.args
+---@param cmd_opts table|nil      # { bang?:boolean, range?:integer, line1?:integer, line2?:integer }
+---@return boolean ok
+---@return RP_Request|nil request
+---@return string|nil err          # human-readable error when ok=false
+function M.parse_request(raw, cmd_opts)
+  cmd_opts = cmd_opts or {}
+  local tokens = parse_args(raw)
+
+  ---@type RP_Request
+  local req = {
+    old = "",
+    new = "",
+    scope = "",
+    all = cmd_opts.bang and true or false,
+    dry = false,
+    export = nil,
+    line_range = nil,
+    overrides = {},
+    filters = { file_types = {}, globs = {}, exclude = {} },
+  }
+
+  local positionals, err = apply_tokens(tokens, req)
+  if not positionals then
+    return false, nil, err
   end
 
   -- Validate positional count with explicit, user-facing messages.
@@ -363,5 +378,7 @@ function M.register(run_fun)
 end
 
 M.resolve_scope = resolve_scope
+M.tokenize      = parse_args   -- quote/escape-aware tokenizer (shared with :Surround)
+M.apply_tokens  = apply_tokens -- flag+positional splitter (shared with :Surround)
 
 return M

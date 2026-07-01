@@ -77,6 +77,30 @@ Examples:
 :Replace foo bar cwd --export=plan.json      # write a JSON change plan
 ```
 
+### Surround — wrap every match
+
+```sh
+:[range]Surround[!] {pattern} [delim] [scope] [--flags]
+```
+
+A convenience layer over `:Replace` that wraps every occurrence of `{pattern}`
+with a delimiter (the replacement is `<left>{pattern}<right>`). It reuses the
+full pipeline — scope, picker, `--dry`, `--all`, and every flag above. `:Wrap`
+is an alias. Search is always **literal** (regex would need per-match capture).
+
+- `delim` — a literal char/string (`` ` `` `"` `'` `*` `**` `_`), a **named alias**, or a **bracket opener** (`(` `[` `{` `<`) which pairs with its closer. Omit it to be prompted.
+- Aliases: `b`→`` ` ``, `q`→`"`, `s`→`'`, `star`→`*`, `bold`→`**`, `italic`→`_`, `paren`→`( )`, `bracket`→`[ ]`, `brace`→`{ }`, `angle`→`< >`.
+
+```sh
+:Surround word `                 # `word`  in the current buffer
+:Surround word b                 # `word`  (alias for backtick)
+:Surround "foo bar" ** cwd       # **foo bar**  across the working dir
+:Surround TODO ( .               # (TODO)  project-wide, all files
+:Surround! name q %              # "name"  everywhere in buffer, no picker
+:'<,'>Surround item *            # *item*  within the selected lines
+:Surround word                   # prompt: "Surround with: "
+```
+
 **After picker opened:**
 
 fzf-lua:
@@ -107,6 +131,7 @@ ______________________________________________________________________
 - **Export** the planned change as a git-applyable `.patch` or `.json` (`--export=`)
 - Per-run **flags** (`--regex`, `--type=`, `--glob=`, `--exclude=`, …) and config defaults
 - **Range** support: `:'<,'>Replace` limits to the selected lines
+- **`:Surround` / `:Wrap`** — wrap every match with a delimiter (backticks, quotes, `**`, brackets, …)
 - Guarded, bottom-up in-buffer edits to avoid offset shift bugs
 - Optional write-to-disk on apply (or keep changes unsaved)
 - Strong EmmyLua annotations and type hints for LuaLS

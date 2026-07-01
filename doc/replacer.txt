@@ -32,6 +32,7 @@ Replacer provides project-wide search-and-replace with:
 • Bottom-up in-buffer edits to avoid offset shift bugs
 • Literal mode by default; optional regex mode
 • Multiple occurrences per line handled correctly
+• |:Surround| — wrap every occurrence of a pattern with a delimiter
 
 ==============================================================================
 2. REQUIREMENTS                                       *replacer-requirements*
@@ -141,6 +142,49 @@ In picker (Telescope/fzf-lua):
                                                                  *:Replacer*
 :Replacer {args}
     Alias for |:Replace|
+
+                                                                 *:Surround*
+                                                                     *:Wrap*
+:[range]Surround[!] {pattern} [delim] [scope] [--flags]
+    Wrap every occurrence of {pattern} with a delimiter. This is a convenience
+    layer over |:Replace|: it runs a literal replace where the replacement is
+    <left>{pattern}<right>, so it inherits scope resolution, the picker, dry-run,
+    --all, and every |replacer-commands| flag. :Wrap is an alias.
+
+    Parameters:~
+        {pattern}  Literal text to search for. Regex is NOT supported here (the
+                   replacement is a fixed string, so each match must be equal);
+                   search is always forced to literal mode.
+        [delim]    The wrapper. One of:
+                     • a literal char/string:  ` " ' * ** _  (used on both sides)
+                     • a named alias (see below)
+                     • a bracket opener ( [ { <  -> paired with its closer
+                   When omitted, you are prompted for it (via |vim.ui.input()|).
+        [scope]    Same as |:Replace|: % | buf · cwd | . · <file|dir>
+                   (default: |replacer-config-default_scope|).
+        [range]    Restricts matching to the selected buffer lines.
+        !          Shorthand for --all (non-interactive, no picker).
+
+    Delimiter aliases:~
+        b bt backtick tick code ........ `
+        q dq quote quotes .............. "
+        s sq single apos ............... '
+        star asterisk .................. *
+        bold strong .................... **
+        italic underscore us ........... _
+        paren parens round ............. ( )
+        bracket brackets square ........ [ ]
+        brace braces curly ............. { }
+        angle angles ................... < >
+
+    Examples:~
+        :Surround word `                 " `word`  in the current buffer
+        :Surround word b                 " `word`  (alias for backtick)
+        :Surround "foo bar" ** cwd       " **foo bar**  across the working dir
+        :Surround TODO ( .               " (TODO)  project-wide, all files
+        :Surround! name q %              " "name"  everywhere in buffer, no picker
+        :'<,'>Surround item *            " *item*  within the selected lines
+        :Surround word                   " prompt: "Surround with: "
 
 ==============================================================================
 6. CONFIGURATION                                    *replacer-configuration*
